@@ -16,9 +16,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/upload" style={{ padding: '0.75rem 1rem', borderRadius: '8px', color: 'var(--text-primary)', textDecoration: 'none', background: 'rgba(255,255,255,0.05)', transition: '0.2s' }}>
             ⬆️ 템플릿 업로드
           </Link>
-          <Link href="/admin/settings" style={{ padding: '0.75rem 1rem', borderRadius: '8px', color: 'var(--text-primary)', textDecoration: 'none', background: 'rgba(255,255,255,0.05)', transition: '0.2s' }}>
-            ⚙️ 상점 설정
-          </Link>
         </nav>
       </aside>
 
