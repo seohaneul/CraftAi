@@ -14,9 +14,9 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isLogin ? '/api/v1/auth/login' : '/api/v1/auth/register';
-    
-    // 강제로 admin이라는 단어가 아이디에 들어가면 사장님 계정으로 만들어버림 (테스트 목적)
-    const role = isLogin ? undefined : (username.toLowerCase().includes('admin') ? 'ADMIN' : 'CUSTOMER');
+    const role = 'COMPANY'; // 무조건 회사(가죽공방) 자격으로 가입됨
+
+    setStatus('인증 진행 중...');
 
     try {
       const res = await fetch(`http://localhost:8081${endpoint}`, {
@@ -28,16 +28,11 @@ export default function LoginPage() {
       const data = await res.json();
       
       if (res.ok) {
-        // 인증정보(Role)를 편의상 로컬 스토리지에 유지
-        localStorage.setItem('userRole', data.role);
+        localStorage.setItem('userRole', 'COMPANY');
         localStorage.setItem('username', data.username || username);
         
-        // 권한에 따라 화면 분기
-        if (data.role === 'ADMIN' || role === 'ADMIN') {
-          router.push('/admin');
-        } else {
-          router.push('/customer');
-        }
+        // 로그인 성공 시 회사 분기 포털 화면으로 이동
+        router.push('/portal');
       } else {
         setStatus(data.message || '인증 실패');
       }
@@ -53,11 +48,11 @@ export default function LoginPage() {
           CraftAI
         </h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '-1rem' }}>
-          {isLogin ? '사장님 또는 고객님으로 로그인하세요' : '새로운 계정을 만들어보세요'}
+          {isLogin ? '파트너 공방 전용 로그인' : '새로운 파트너 공방으로 가입하세요'}
         </p>
         
         <input 
-          type="text" placeholder="아이디 (admin이 들어가면 사장님 권한)" value={username} onChange={e => setUsername(e.target.value)} required
+          type="text" placeholder="공방 아이디 (회사명)" value={username} onChange={e => setUsername(e.target.value)} required
           style={{ padding: '1rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'white', outline: 'none' }}
         />
         <input 
@@ -68,11 +63,11 @@ export default function LoginPage() {
         {status && <div style={{ color: 'var(--danger)', fontSize: '0.9rem', textAlign: 'center' }}>{status}</div>}
         
         <button type="submit" className="btn btn-primary" style={{ padding: '1rem', fontSize: '1.1rem', marginTop: '1rem' }}>
-          {isLogin ? '로그인하기' : '회원가입하기'}
+          {isLogin ? '로그인 들어가기' : '파트너 파트너스 가입하기'}
         </button>
         
         <button type="button" onClick={() => setIsLogin(!isLogin)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginTop: '0.5rem', textDecoration: 'underline' }}>
-          {isLogin ? '아직 계정이 없으신가요? (회원가입)' : '이미 계정이 있으신가요? (로그인)'}
+          {isLogin ? '제휴 공방 등록하기 (회원가입)' : '이미 로그인 계정이 있습니다'}
         </button>
       </form>
     </div>

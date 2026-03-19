@@ -16,15 +16,17 @@ export default function CustomerPage() {
   const [status, setStatus] = useState('');
   const [username, setUsername] = useState('고객님');
 
-  // 지금은 편의상 admin123 사장님의 템플릿을 고정으로 불러옴
-  const adminId = 'admin123';
-
   useEffect(() => {
-    setUsername(localStorage.getItem('username') || '고객님');
-    fetch(`http://localhost:8081/api/v1/templates/${adminId}`)
-      .then(res => res.json())
-      .then(data => setTemplates(data))
-      .catch(e => console.error(e));
+    const comName = localStorage.getItem('username');
+    if(comName) {
+      setUsername(comName);
+      fetch(`http://localhost:8081/api/v1/templates/${comName}`)
+        .then(res => res.json())
+        .then(data => setTemplates(data))
+        .catch(e => console.error(e));
+    } else {
+      window.location.href = '/';
+    }
   }, []);
 
   const handleAiProcessing = async (e: React.FormEvent) => {

@@ -12,15 +12,21 @@ interface Template {
 
 export default function AdminDashboard() {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const adminId = 'admin123'; // 테스트용 목업 ID
+  const [adminId, setAdminId] = useState('');
 
   useEffect(() => {
-    fetchTemplates();
+    const user = localStorage.getItem('username');
+    if(user) {
+      setAdminId(user);
+      fetchTemplates(user);
+    } else {
+      window.location.href = '/';
+    }
   }, []);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = async (userId: string) => {
     try {
-      const res = await fetch(`http://localhost:8081/api/v1/templates/${adminId}`);
+      const res = await fetch(`http://localhost:8081/api/v1/templates/${userId}`);
       if (res.ok) {
         setTemplates(await res.json());
       }
