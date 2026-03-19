@@ -8,7 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/templates")
-@CrossOrigin(origins = "*") // 프론트엔드 테스트를 위한 CORS 허용
+@CrossOrigin(origins = "*")
 public class TemplateController {
 
     private final TemplateService templateService;
@@ -23,11 +23,21 @@ public class TemplateController {
             @RequestParam("templateName") String templateName,
             @RequestParam("image") MultipartFile image) {
         try {
-            // S3 URL이 포함된 AdminTemplate 엔티티 저장 후 결과 반환
             AdminTemplate savedTemplate = templateService.saveTemplate(adminId, templateName, image);
             return ResponseEntity.ok(savedTemplate);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error uploading template: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/{adminId}")
+    public ResponseEntity<?> getTemplates(@PathVariable String adminId) {
+        return ResponseEntity.ok(templateService.getTemplatesByAdminId(adminId));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTemplate(@PathVariable Long id) {
+        templateService.deleteTemplate(id);
+        return ResponseEntity.ok().build();
     }
 }
