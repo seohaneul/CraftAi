@@ -51,13 +51,13 @@ export default function CustomerPage() {
     setStatus('AI가 가죽의 질감을 템플릿 디자인에 입히는 중입니다... (약 2초 대기)');
     
     try {
+      const formData = new FormData();
+      formData.append('leatherImage', myImage);
+      formData.append('templateImageUrl', selectedTemplate.s3OriginalImageUrl);
+
       const res = await fetch(`http://localhost:8081/api/v1/orders/visualize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl: "https://craftai-storage.s3.ap-northeast-2.amazonaws.com/dummy-client-img.jpeg", 
-          prompt: `사용자가 올린 가죽 질감을 [${selectedTemplate.templateName}] 템플릿에 적용해줘` // 기술적인 처리를 위해 보이지 않게 넘겨주는 값
-        })
+        body: formData
       });
       
       const data = await res.json();

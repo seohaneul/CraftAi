@@ -3,9 +3,12 @@ package com.craftai.controller;
 import com.craftai.service.AiProcessingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/orders")
+@CrossOrigin(origins = "*")
 public class OrderController {
 
     private final AiProcessingService aiProcessingService;
@@ -15,19 +18,16 @@ public class OrderController {
     }
 
     @PostMapping("/visualize")
-    public ResponseEntity<String> requestVisualization(@RequestBody VisualizationRequest request) {
-        // 클라이언트 요청을 받아 서비스 계층으로 전달
-        String aiResponse = aiProcessingService.requestImageSynthesis(request.getImageUrl(), request.getPrompt());
-        return ResponseEntity.ok(aiResponse);
+    public ResponseEntity<?> visualize(
+            @RequestParam("leatherImage") MultipartFile leatherImage,
+            @RequestParam("templateImageUrl") String templateImageUrl) {
+        try {
+            // 전달받은 가죽 파일을 AI 서비스로 넘겨 처리
+            String resultUrl = aiProcessingService.requestSynthesis(leatherImage, templateImageUrl);
+            return ResponseEntity.ok(Map.of("result_image_url", resultUrl));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Error visualizing: " + e.getMessage());
+        }
     }
-}
-
-class VisualizationRequest {
-    private String imageUrl;
-    private String prompt;
-
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-    public String getPrompt() { return prompt; }
-    public void setPrompt(String prompt) { this.prompt = prompt; }
 }
