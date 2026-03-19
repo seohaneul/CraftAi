@@ -3,7 +3,8 @@ package com.craftai.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -22,7 +23,12 @@ public class S3StorageService {
 
     public S3StorageService() {
         this.s3Client = S3Client.builder()
-                .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(
+                                System.getProperty("AWS_ACCESS_KEY_ID"),
+                                System.getProperty("AWS_SECRET_ACCESS_KEY")
+                        )
+                ))
                 .region(Region.AP_NORTHEAST_2)
                 .build();
     }
