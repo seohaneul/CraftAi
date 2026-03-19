@@ -1,0 +1,27 @@
+# 모든 환경 변수 파일 무시 (절대 깃허브에 올라가면 안 됨)
+.env
+.env.local
+.env.*
+
+# 프론트엔드 (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/npm-debug.log*
+
+# 백엔드 (Spring Boot/Gradle)
+backend/build/
+backend/.gradle/
+backend/out/
+backend/bin/
+
+# AI 서버 (Python)
+ai/venv/
+ai/__pycache__/
+ai/*.py[cod]
+
+# 기타 에디터 설정 파일
+.vscode/
+.idea/
+.DS_Store
