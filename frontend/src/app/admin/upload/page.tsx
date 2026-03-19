@@ -23,7 +23,7 @@ export default function UploadTemplatePage() {
         formData.append('image', image);
 
         try {
-            const res = await fetch('http://localhost:8080/api/v1/templates/upload', {
+            const res = await fetch('http://localhost:8081/api/v1/templates/upload', {
                 method: 'POST',
                 body: formData,
             });
