@@ -20,7 +20,7 @@ export default function PortalPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
       <header style={{ marginBottom: '4rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '3rem', fontWeight: 800, margin: 0, background: 'linear-gradient(45deg, #60a5fa, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 className="premium-text-gradient" suppressHydrationWarning style={{ fontSize: '3rem' }}>
           {username} 스튜디오 환영합니다
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', marginTop: '1rem' }}>어떤 모드로 접속하시겠습니까?</p>
