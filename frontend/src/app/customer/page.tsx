@@ -76,7 +76,7 @@ export default function CustomerPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '2.5rem 5rem' }}>
       <header style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
         <div>
-            <h1 style={{ fontSize: '2.2rem', fontWeight: '800', background: 'linear-gradient(45deg, #60a5fa, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
+            <h1 className="premium-text-gradient" style={{ fontSize: '2.2rem', fontWeight: '800', margin: 0 }}>
                 {username} 맞춤 디자인 쇼룸
             </h1>
             <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-secondary)', fontSize: '1.1rem' }}>찍어온 가죽 사진과 마음에 드는 디자인을 골라 합성 결과를 확인해보세요.</p>

@@ -75,3 +75,10 @@ body {
   transition: transform 0.5s ease;
 }
 .gallery-card:hover .gallery-img-wrapper img { transform: scale(1.05); }
+
+.premium-text-gradient {
+  background: linear-gradient(45deg, #60a5fa, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
