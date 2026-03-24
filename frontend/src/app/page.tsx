@@ -41,31 +41,33 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
-      <form onSubmit={handleAuth} className="premium-glass" style={{ padding: '3.5rem 3rem', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <h2 style={{ textAlign: 'center', margin: 0, fontSize: '2.5rem', fontWeight: 800, background: 'linear-gradient(45deg, #60a5fa, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+    <div className="full-viewport-center" suppressHydrationWarning>
+      <form onSubmit={handleAuth} className="premium-glass login-form" suppressHydrationWarning>
+        <h2 className="premium-text-gradient title-lg text-center" suppressHydrationWarning>
           CraftAI
         </h2>
-        <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: '-1rem' }}>
+        <p className="text-secondary-color text-center mb-4" suppressHydrationWarning>
           {isLogin ? '파트너 공방 전용 로그인' : '새로운 파트너 공방으로 가입하세요'}
         </p>
         
         <input 
           type="text" placeholder="공방 아이디 (회사명)" value={username} onChange={e => setUsername(e.target.value)} required
-          style={{ padding: '1rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'white', outline: 'none' }}
+          className="login-input"
+          suppressHydrationWarning
         />
         <input 
           type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required
-          style={{ padding: '1rem', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'white', outline: 'none' }}
+          className="login-input"
+          suppressHydrationWarning
         />
         
-        {status && <div style={{ color: 'var(--danger)', fontSize: '0.9rem', textAlign: 'center' }}>{status}</div>}
+        {status && <div className="error-text" suppressHydrationWarning>{status}</div>}
         
-        <button type="submit" className="btn btn-primary" style={{ padding: '1rem', fontSize: '1.1rem', marginTop: '1rem' }}>
+        <button type="submit" className="btn btn-primary mt-4 p-4 text-lg" suppressHydrationWarning>
           {isLogin ? '로그인 들어가기' : '파트너 파트너스 가입하기'}
         </button>
         
-        <button type="button" onClick={() => setIsLogin(!isLogin)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginTop: '0.5rem', textDecoration: 'underline' }}>
+        <button type="button" onClick={() => setIsLogin(!isLogin)} className="link-btn" suppressHydrationWarning>
           {isLogin ? '제휴 공방 등록하기 (회원가입)' : '이미 로그인 계정이 있습니다'}
         </button>
       </form>

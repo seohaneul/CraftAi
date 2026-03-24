@@ -48,37 +48,37 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="dashboard" style={{ paddingBottom: '3rem' }}>
-      <header style={{ marginBottom: '2rem', paddingTop: '1rem' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>갤러리 대시보드</h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>업로드한 디자인 템플릿을 한 눈에 관리하세요.</p>
+    <div className="dashboard mb-8" suppressHydrationWarning>
+      <header className="mb-8 mt-4" suppressHydrationWarning>
+        <h2 className="title-lg" suppressHydrationWarning>갤러리 대시보드</h2>
+        <p className="description-text" suppressHydrationWarning>업로드한 디자인 템플릿을 한 눈에 관리하세요.</p>
       </header>
 
-      <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-          <h3 style={{ fontSize: '1.2rem', margin: 0 }}>보유 중인 템플릿</h3>
-          <span style={{ background: 'rgba(255,255,255,0.1)', padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem' }}>
+      <section suppressHydrationWarning>
+        <div className="flex-row justify-between align-center border-bottom pb-2 mb-4" suppressHydrationWarning>
+          <h3 className="title-sm" suppressHydrationWarning>보유 중인 템플릿</h3>
+          <span className="premium-glass p-2 rounded-full text-xs" suppressHydrationWarning>
             총 {templates.length}건
           </span>
         </div>
         
         {templates.length === 0 ? (
-          <div className="premium-glass" style={{ padding: '4rem', textAlign: 'center', marginTop: '2rem', color: 'var(--text-secondary)' }}>
+          <div className="premium-glass p-10 text-center mt-8 text-secondary-color" suppressHydrationWarning>
             아직 업로드된 템플릿이 없습니다. 좌측 메뉴에서 템플릿을 추가해주세요!
           </div>
         ) : (
-          <div className="gallery-grid">
+          <div className="gallery-grid" suppressHydrationWarning>
             {templates.map(temp => (
-              <div key={temp.id} className="premium-glass gallery-card">
-                <div className="gallery-img-wrapper">
-                  <img src={temp.s3OriginalImageUrl} alt={temp.templateName} />
+              <div key={temp.id} className="premium-glass gallery-card" suppressHydrationWarning>
+                <div className="gallery-img-wrapper" suppressHydrationWarning>
+                  <img src={temp.s3OriginalImageUrl} alt={temp.templateName} suppressHydrationWarning />
                 </div>
-                <div style={{ padding: '1.2rem' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>{temp.templateName}</h4>
-                  <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <div className="p-4" suppressHydrationWarning>
+                  <h4 className="title-sm mb-2" suppressHydrationWarning>{temp.templateName}</h4>
+                  <p className="text-secondary-color text-xs mb-4" suppressHydrationWarning>
                     등록일: {new Date(temp.registrationDate).toLocaleDateString()}
                   </p>
-                  <button onClick={() => deleteTemplate(temp.id)} className="btn btn-danger" style={{ width: '100%', padding: '0.7rem' }}>
+                  <button onClick={() => deleteTemplate(temp.id)} className="btn btn-danger w-full p-2" suppressHydrationWarning>
                     삭제하기
                   </button>
                 </div>

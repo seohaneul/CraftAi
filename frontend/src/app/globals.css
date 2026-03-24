@@ -23,6 +23,159 @@ body {
   box-sizing: border-box;
 }
 
+/* ---- Utility Classes to prevent Hydration Mismatches ---- */
+.flex-column { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.justify-between { justify-content: space-between; }
+.align-center { align-items: center; }
+.w-full { width: 100%; }
+.h-screen { height: 100vh; }
+.gap-1 { gap: 0.5rem; }
+.gap-2 { gap: 1rem; }
+.gap-3 { gap: 1.5rem; }
+.gap-4 { gap: 2rem; }
+.gap-6 { gap: 3rem; }
+.gap-8 { gap: 4rem; }
+.flex-1 { flex: 1; }
+.text-center { text-align: center; }
+.cursor-pointer { cursor: pointer; }
+.mt-4 { margin-top: 1rem; }
+.mt-8 { margin-top: 2rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-8 { margin-bottom: 2rem; }
+.p-4 { padding: 1rem; }
+.p-8 { padding: 2rem; }
+.p-10 { padding: 2.5rem; }
+.text-primary-color { color: var(--text-primary); }
+.text-secondary-color { color: var(--text-secondary); }
+.text-accent-color { color: var(--accent); }
+.text-bold { font-weight: 700; }
+.title-xl { font-size: 3rem; font-weight: 800; margin: 0; }
+.title-lg { font-size: 2.2rem; font-weight: 800; margin: 0; }
+.title-md { font-size: 1.8rem; font-weight: 700; margin: 0; }
+.title-section { font-size: 1.5rem; font-weight: 600; margin: 0 0 1.5rem 0; }
+.title-sm { font-size: 1.2rem; font-weight: 600; margin: 0; }
+.description-text { font-size: 1.1rem; color: var(--text-secondary); margin: 0.5rem 0 0 0; }
+.premium-glass-btn { color: var(--text-primary) !important; text-decoration: none; }
+.full-viewport-center { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-primary); }
+
+.portal-header {
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.portal-card-grid {
+  display: flex;
+  gap: 3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.portal-card {
+  width: 350px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.portal-icon {
+  font-size: 4.5rem;
+  display: block;
+}
+
+.portal-logout-btn {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  margin-top: 4rem;
+  font-size: 1rem;
+  text-decoration: underline;
+}
+
+ .lh-1-5 { line-height: 1.5; }
+.no-underline { text-decoration: none; }
+
+.login-form {
+  padding: 3.5rem 3rem;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.login-input {
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.2) !important;
+  border: 1px solid var(--border) !important;
+  color: white !important;
+  outline: none;
+}
+
+.login-input:focus {
+  border-color: var(--accent) !important;
+  background: rgba(0,0,0,0.3) !important;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.link-btn {
+  background: none !important;
+  border: none !important;
+  color: var(--text-secondary) !important;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  text-decoration: underline;
+}
+
+.admin-layout {
+  display: flex !important;
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+.admin-sidebar {
+  width: 280px !important;
+  margin: 20px !important;
+  padding: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2rem !important;
+}
+
+.admin-nav-link {
+  display: block !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
+  background: rgba(255,255,255,0.05) !important;
+  transition: 0.2s !important;
+}
+
+.admin-nav-link:hover {
+  background: rgba(255,255,255,0.1) !important;
+  transform: translateX(5px) !important;
+}
+
+.admin-main {
+  flex: 1 !important;
+  padding: 20px 40px !important;
+  overflow-y: auto !important;
+  height: 100vh !important;
+}
+
+
+
+
 .premium-glass {
   background: var(--surface);
   backdrop-filter: blur(12px);

@@ -83,13 +83,13 @@ export default function CustomerPage() {
                 찍어온 가죽 사진과 마음에 드는 디자인을 골라 합성 결과를 확인해보세요.
             </p>
         </div>
-        <button onClick={() => window.location.href='/portal'} className="btn premium-glass" style={{ color: 'var(--text-primary)' }}>이전으로</button>
+        <button onClick={() => window.location.href='/portal'} className="btn premium-glass text-primary-color" suppressHydrationWarning>이전으로</button>
       </header>
 
       <div className="customer-content-layout" suppressHydrationWarning>
         {/* 왼쪽 갤러리 (템플릿 선택) */}
         <section className="customer-gallery-section" suppressHydrationWarning>
-          <h2 suppressHydrationWarning style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>1. 원하는 디자인 베이스(템플릿) 선택</h2>
+          <h2 className="title-section" suppressHydrationWarning>1. 원하는 디자인 베이스(템플릿) 선택</h2>
           
           <div className="customer-gallery-grid" suppressHydrationWarning>
             {templates.map(t => {
@@ -101,24 +101,24 @@ export default function CustomerPage() {
                   onClick={() => setSelectedTemplate(t)}
                   suppressHydrationWarning
                 >
-                  <div className="gallery-img-wrapper" style={{ paddingTop: '80%' }}>
+                  <div className="gallery-img-wrapper">
                     <img src={t.s3OriginalImageUrl} alt={t.templateName} />
                   </div>
-                  <div className="card-footer" style={{ padding: '1rem', textAlign: 'center' }}>
-                    <strong style={{ fontSize: '0.95rem' }}>{t.templateName}</strong>
-                    {isSelected && <span style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.8rem' }}>선택됨 ✔️</span>}
+                  <div className="card-footer text-center p-4">
+                    <strong className="title-sm">{t.templateName}</strong>
+                    {isSelected && <span className="text-accent-color mt-4 block text-sm">선택됨 ✔️</span>}
                   </div>
                 </div>
               );
             })}
-            {templates.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>스토어에 등록된 샘플 템플릿이 없습니다.</p>}
+            {templates.length === 0 && <p className="text-secondary-color text-center p-8">스토어에 등록된 샘플 템플릿이 없습니다.</p>}
           </div>
         </section>
 
         {/* 오른쪽 사용자 가죽 업로드 및 결과물 확인 */}
         <section className="customer-upload-section" suppressHydrationWarning>
           <div className="premium-glass customer-card-padding" suppressHydrationWarning>
-            <h2 suppressHydrationWarning style={{ fontSize: '1.5rem', marginBottom: '2rem', fontWeight: 600 }}>📸 내 가죽과 아이템 매칭하기</h2>
+            <h2 className="title-section mb-8" suppressHydrationWarning>📸 내 가죽과 아이템 매칭하기</h2>
             
             <form onSubmit={handleAiProcessing} className="customer-form" suppressHydrationWarning>
               <div suppressHydrationWarning>
@@ -126,33 +126,30 @@ export default function CustomerPage() {
                   2. 직접 촬영한 가죽이나 스와치(질감) 사진 올리기
                 </label>
                 <div 
-                  className="customer-upload-box" 
+                  className={`customer-upload-box ${previewImage ? 'border-accent' : 'border-dashed'}`} 
                   suppressHydrationWarning
-                  style={{
-                    border: previewImage ? '1px solid var(--accent)' : '2px dashed var(--border)',
-                    background: previewImage ? 'transparent' : 'rgba(0,0,0,0.2)',
-                  }}
                 >
                   {previewImage ? (
-                    <img src={previewImage} alt="미리보기" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
                   ) : (
-                    <div style={{ color: 'var(--text-secondary)' }}>
-                      <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>📤</span>
-                      <p style={{ margin: 0 }}>클릭하여 소재 사진 첨부</p>
+                    <div className="text-secondary-color text-center p-8" suppressHydrationWarning>
+                      <span className="text-5xl block mb-2">📤</span>
+                      <p className="m-0">클릭하여 소재 사진 첨부</p>
                     </div>
                   )}
                   <input 
                     type="file" 
                     accept="image/*" 
                     onChange={handleImageChange} 
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    suppressHydrationWarning
                   />
                 </div>
               </div>
 
               {selectedTemplate ? (
                 <div className="customer-selection-info active" suppressHydrationWarning>
-                  현재 선택된 템플릿: <strong>{selectedTemplate.templateName}</strong>
+                  현재 선택된 템플릿: <strong className="text-bold">{selectedTemplate.templateName}</strong>
                 </div>
               ) : (
                 <div className="customer-selection-info empty" suppressHydrationWarning>
@@ -171,12 +168,12 @@ export default function CustomerPage() {
               </button>
             </form>
 
-            {status && <p style={{ marginTop: '1.5rem', color: 'var(--accent)', fontWeight: 'bold' }} suppressHydrationWarning>{status}</p>}
+            {status && <p className="mt-4 text-accent-color text-bold" suppressHydrationWarning>{status}</p>}
 
             {resultImg && (
               <div className="customer-result-area" suppressHydrationWarning>
-                <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }} suppressHydrationWarning>결과물 프리뷰</h3>
-                <img src={resultImg} alt="AI 합성 결과" style={{ width: '100%', borderRadius: '12px', border: '1px solid #3b82f6', boxShadow: '0 0 15px rgba(59, 130, 246, 0.3)' }} />
+                <h3 className="title-sm mb-4 text-primary-color" suppressHydrationWarning>결과물 프리뷰</h3>
+                <img src={resultImg} alt="AI 합성 결과" className="w-full rounded-xl border-accent shadow-glow" suppressHydrationWarning />
               </div>
             )}
           </div>
@@ -184,4 +181,5 @@ export default function CustomerPage() {
       </div>
     </div>
   );
+
 }
