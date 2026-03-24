@@ -18,8 +18,13 @@ export default function CustomerPage() {
   const [username, setUsername] = useState('고객님');
 
   useEffect(() => {
+    // 하이드레이션 과정에서 생길 수 있는 빈 스타일 속성을 클라이언트 사이드에서만 안전하게 제거
+    if (typeof document !== 'undefined' && document.body.getAttribute("style") === "") {
+      document.body.removeAttribute("style");
+    }
+
     const comName = localStorage.getItem('username');
-    if(comName) {
+    if (comName) {
       setUsername(comName);
       fetch(`http://localhost:8081/api/v1/templates/${comName}`)
         .then(res => res.json())
@@ -47,9 +52,9 @@ export default function CustomerPage() {
       setStatus('템플릿과 가죽(소재) 사진을 모두 골라주세요.');
       return;
     }
-    
+
     setStatus('AI가 가죽의 질감을 템플릿 디자인에 입히는 중입니다... (약 2초 대기)');
-    
+
     try {
       const formData = new FormData();
       formData.append('leatherImage', myImage);
@@ -59,7 +64,7 @@ export default function CustomerPage() {
         method: 'POST',
         body: formData
       });
-      
+
       const data = await res.json();
       if (res.ok) {
         setStatus('✨ 매력적인 가죽 제품 디자인이 완성되었습니다!');
@@ -76,28 +81,28 @@ export default function CustomerPage() {
     <div className="customer-container" suppressHydrationWarning>
       <header className="customer-header" suppressHydrationWarning>
         <div suppressHydrationWarning>
-            <h1 className="premium-text-gradient" suppressHydrationWarning>
-                {username} 맞춤 디자인 쇼룸
-            </h1>
-            <p className="customer-subtitle" suppressHydrationWarning>
-                찍어온 가죽 사진과 마음에 드는 디자인을 골라 합성 결과를 확인해보세요.
-            </p>
+          <h1 className="premium-text-gradient" suppressHydrationWarning>
+            {username} 맞춤 디자인 쇼룸
+          </h1>
+          <p className="customer-subtitle" suppressHydrationWarning>
+            찍어온 가죽 사진과 마음에 드는 디자인을 골라 합성 결과를 확인해보세요.
+          </p>
         </div>
-        <button onClick={() => window.location.href='/portal'} className="btn premium-glass text-primary-color" suppressHydrationWarning>이전으로</button>
+        <button onClick={() => window.location.href = '/portal'} className="btn premium-glass text-primary-color" suppressHydrationWarning>이전으로</button>
       </header>
 
       <div className="customer-content-layout" suppressHydrationWarning>
         {/* 왼쪽 갤러리 (템플릿 선택) */}
         <section className="customer-gallery-section" suppressHydrationWarning>
           <h2 className="title-section" suppressHydrationWarning>1. 원하는 디자인 베이스(템플릿) 선택</h2>
-          
+
           <div className="customer-gallery-grid" suppressHydrationWarning>
             {templates.map(t => {
               const isSelected = selectedTemplate?.id === t.id;
               return (
-                <div 
-                  key={t.id} 
-                  className={`premium-glass gallery-card customer-gallery-card ${isSelected ? 'selected' : ''}`} 
+                <div
+                  key={t.id}
+                  className={`premium-glass gallery-card customer-gallery-card ${isSelected ? 'selected' : ''}`}
                   onClick={() => setSelectedTemplate(t)}
                   suppressHydrationWarning
                 >
@@ -119,14 +124,14 @@ export default function CustomerPage() {
         <section className="customer-upload-section" suppressHydrationWarning>
           <div className="premium-glass customer-card-padding" suppressHydrationWarning>
             <h2 className="title-section mb-8" suppressHydrationWarning>📸 내 가죽과 아이템 매칭하기</h2>
-            
+
             <form onSubmit={handleAiProcessing} className="customer-form" suppressHydrationWarning>
               <div suppressHydrationWarning>
                 <label className="customer-label" suppressHydrationWarning>
                   2. 직접 촬영한 가죽이나 스와치(질감) 사진 올리기
                 </label>
-                <div 
-                  className={`customer-upload-box ${previewImage ? 'border-accent' : 'border-dashed'}`} 
+                <div
+                  className={`customer-upload-box ${previewImage ? 'border-accent' : 'border-dashed'}`}
                   suppressHydrationWarning
                 >
                   {previewImage ? (
@@ -137,10 +142,10 @@ export default function CustomerPage() {
                       <p className="m-0">클릭하여 소재 사진 첨부</p>
                     </div>
                   )}
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageChange} 
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     suppressHydrationWarning
                   />
@@ -157,9 +162,9 @@ export default function CustomerPage() {
                 </div>
               )}
 
-              <button 
-                type="submit" 
-                className="btn btn-primary customer-submit-btn" 
+              <button
+                type="submit"
+                className="btn btn-primary customer-submit-btn"
                 disabled={!selectedTemplate || !myImage}
                 style={{ opacity: (!selectedTemplate || !myImage) ? 0.5 : 1 }}
                 suppressHydrationWarning
