@@ -1,8 +1,8 @@
 import os
-import json
-import base64
-import random
+import io
+import time
 import urllib.request
+import replicate
 from google import genai
 from google.genai import types
 from fastapi import FastAPI
@@ -11,24 +11,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Google Gemini / Imagen API 구성
-google_api_key = os.getenv("GOOGLE_API_KEY")
-client = None
-if google_api_key:
-    try:
-        client = genai.Client(api_key=google_api_key)
-        print("✅ Google Gemini (Multimodal & Imagen) 클라이언트 준비 완료.")
-    except Exception as e:
-        print(f"❌ Gemini 클라이언트 초기화 실패: {e}")
-
-app = FastAPI(title="CraftAI Image Synthesis API (Premium Dual-Gen)")
+app = FastAPI(title="CraftAI Image Synthesis API (Ultimate AI Pipeline)")
 
 class SynthesisRequest(BaseModel):
     leather_url: str
     template_url: str
 
 def get_image_data(url: str):
-    """URL에서 이미지 바이너리를 가져옵니다."""
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as res:
@@ -39,87 +28,89 @@ def get_image_data(url: str):
 
 @app.post("/api/v1/synthesize")
 async def synthesize(req: SynthesisRequest):
-    print("🚀 2단계 프리미엄 AI 합성 프로세스 시작...")
+    print("🚀 Ultimate AI 파이프라인(Gemini 분석 + ControlNet 형태 보존) 시작...")
     
-    if not client:
-        print("❌ [Warning] API 클라이언트 없음. 원본 반환.")
+    replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    
+    if not replicate_api_token:
+        print("❌ [Warning] REPLICATE_API_TOKEN이 없습니다. 원본 반환.")
         return {"result_image_url": req.leather_url}
 
-    try:
-        # Step 1: 이미지 다운로드
-        leather_bytes = get_image_data(req.leather_url)
-        template_bytes = get_image_data(req.template_url)
+    # 기본 프롬프트 (안전을 위해)
+    texture_description = "premium luxury rich leather, highly detailed continuous texture"
 
-        if not leather_bytes or not template_bytes:
-            print("⚠️ 원본 이미지를 불러올 수 없습니다.")
-            return {"result_image_url": req.leather_url}
-
-        # Step 2: Gemini 1.5 Flash를 사용하여 맞춤형 프롬프트 생성 (Multimodal Analysis)
-        print("🔍 1단계: 가죽 질감 및 디자인 형태 분석 중 (Gemini 1.5 Flash)...")
-        
-        analysis_prompt = (
-            "Analyze these two images. Image 1 is a leather material texture. Image 2 is a specific leather craft item template (shape). "
-            "Task: Generate a highly detailed professional prompt for an AI image generator (Imagen). "
-            "The prompt must describe a product shot of the ITEM SHAPE in image 2, but made with the EXACT TEXTURE AND COLOR of the leather in image 1. "
-            "The prompt should focus on '8k resolution, luxury craftsmanship, studio lighting'. "
-            "Response should only contain the final prompt text without any other comments."
-        )
-
-        custom_prompt = (
-            "A high-end luxury leather craft masterpiece, extremely rich and detailed leather grain texture, "
-            "professional product photography, studio lighting, 8k resolution, elegant styling."
-        )
-
+    # Step 1: Gemini를 이용한 가죽 질감 정밀 분석 (멀티모달)
+    if google_api_key:
         try:
-            # SDK 규격에 맞게 Part 객체로 변환
-            part1 = types.Part.from_bytes(data=leather_bytes, mime_type="image/jpeg")
-            part2 = types.Part.from_bytes(data=template_bytes, mime_type="image/jpeg")
+            print("🔍 1단계: 업로드된 가죽의 색상/질감 패턴 분석 중 (Gemini 1.5 Vision)...")
+            client = genai.Client(api_key=google_api_key)
+            leather_bytes = get_image_data(req.leather_url)
+            
+            if leather_bytes:
+                part = types.Part.from_bytes(data=leather_bytes, mime_type="image/jpeg")
+                prompt = (
+                    "Analyze this leather texture. "
+                    "In exactly one short sentence, describe its precise color, grain, pattern, and finish "
+                    "(e.g., 'glossy dark brown crocodile embossed leather', 'smooth matte tan cowhide'). "
+                    "Return ONLY the description text, no other words."
+                )
+                
+                res = client.models.generate_content(
+                    model="gemini-1.5-flash-001",
+                    contents=[prompt, part]
+                )
+                if res and res.text:
+                    texture_description = res.text.strip()
+                    print(f"✨ 가죽 분석 완료! 질감 키워드: {texture_description}")
+        except Exception as e:
+            print(f"⚠️ Gemini 분석 에러 (기본 질감으로 진행): {e}")
 
-            # 가장 안정적인 기본 모델명 사용
-            response_text = client.models.generate_content(
-                model="gemini-1.5-flash-001",
-                contents=[analysis_prompt, part1, part2]
+    # Step 2: 분석된 질감 값을 ControlNet 프롬프트에 동적으로 삽입하여 완벽한 모양으로 렌더링
+    print("🎨 2단계: 템플릿 형태 고정 및 AI 텍스처 렌더링 중 (Stable Diffusion ControlNet)...")
+    final_prompt = f"A photo-realistic masterpiece product shot of a bag made of {texture_description}. 8k resolution, studio lighting, hyper-realistic, luxury craftsmanship."
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            output = replicate.run(
+                "jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307baf1c56960b5e02e1c166",
+                input={
+                    "image": req.template_url,
+                    "prompt": final_prompt,
+                    "a_prompt": "best quality, extremely detailed, photo-real",
+                    "n_prompt": "longbody, lowres, bad anatomy, bad hands, missing fingers, cropped, worst quality, low quality",
+                    "num_samples": 1,
+                    "image_resolution": 512,
+                    "ddim_steps": 20,
+                    "scale": 9.0
+                }
             )
-            if response_text and response_text.text:
-                custom_prompt = response_text.text.strip()
-                print(f"✨ 분석 완료! 생성된 커스텀 프롬프트: {custom_prompt}")
+            
+            if output and len(output) > 1:
+                result_url = output[1]
+                print(f"🎉 완벽한 AI 합성 성공! (형태 유지 + 질감 맞춤) 결과 URL: {result_url}")
+                return {"result_image_url": result_url}
+            elif output and len(output) == 1:
+                result_url = output[0]
+                print(f"🎉 완벽한 AI 합성 성공! 결과 URL: {result_url}")
+                return {"result_image_url": result_url}
             else:
-                print("⚠️ 프롬프트가 비어있어 기본값을 사용합니다.")
-        except Exception as prompt_e:
-            print(f"⚠️ Gemini 프롬프트 생성 에러 (기본 프롬프트로 대체): {prompt_e}")
-
-        # Step 3: 생성된 맞춤형 프롬프트로 Imagen 4.0 이미지 생성
-        print("🎨 2단계: 프리미엄 이미지 렌더링 중 (Imagen 4.0)...")
+                print("⚠️ ControlNet 결과가 비어있습니다.")
+                break # Not a rate limit error, break early
+                
+        except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "rate limit" in error_str or "throttled" in error_str:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt + 3 # 4s, 5s...
+                    print(f"⏳ Replicate 무료 제한(429) 초과. {wait_time}초 후 재시도 합니다... ({attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    print(f"💥 최대한 재시도 에도 불구하고 Replicate ControlNet 에러 발생: {e}")
+            else:
+                print(f"💥 Replicate ControlNet 치명적 에러: {e}")
+                break # Not a rate limit error
         
-        response_img = client.models.generate_images(
-            model='imagen-4.0-generate-001',
-            prompt=custom_prompt,
-            config={'number_of_images': 1}
-        )
-        
-        if response_img and response_img.generated_images:
-            img_obj = response_img.generated_images[0]
-            
-            # 이미지 바이너리 추출 (다양한 속성명 체크)
-            img_bytes = None
-            if hasattr(img_obj.image, 'image_bytes'):
-                img_bytes = img_obj.image.image_bytes
-            elif hasattr(img_obj.image, 'bytes'):
-                img_bytes = img_obj.image.bytes
-            elif hasattr(img_obj, 'as_bytes'):
-                img_bytes = img_obj.as_bytes()
-            
-            if img_bytes:
-                b64_image = base64.b64encode(img_bytes).decode('utf-8')
-                print("🎉 2단계 프리미엄 합성 완료! 최종 이미지를 전송합니다.")
-                return {"result_image_url": f"data:image/png;base64,{b64_image}"}
-
-    except Exception as e:
-        print(f"💥 합성 프로세스 에러: {e}")
-        
-    # 실패 시 원본 가죽 이미지를 안전하게 반환
     return {"result_image_url": req.leather_url}
-
-
-
 
