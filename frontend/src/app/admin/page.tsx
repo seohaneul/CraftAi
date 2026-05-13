@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-// Types
 interface Template {
   id: number;
   templateName: string;
@@ -12,15 +11,16 @@ interface Template {
 
 export default function AdminDashboard() {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [adminId, setAdminId] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [editPreview, setEditPreview] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const user = localStorage.getItem('username');
-    if(user) {
-      setAdminId(user);
+    if (user) {
       fetchTemplates(user);
-    } else {
-      window.location.href = '/';
     }
   }, []);
 
@@ -35,12 +35,49 @@ export default function AdminDashboard() {
     }
   };
 
-  const deleteTemplate = async (id: number) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  const handleOpenEdit = (t: Template) => {
+    setSelectedTemplate(t);
+    setEditName(t.templateName);
+    setEditPreview(t.s3OriginalImageUrl);
+    setEditImage(null);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTemplate) return;
+
+    setIsUpdating(true);
+    const formData = new FormData();
+    formData.append('templateName', editName);
+    if (editImage) formData.append('image', editImage);
+
     try {
-      const res = await fetch(`http://localhost:8081/api/v1/templates/${id}`, { method: 'DELETE' });
+      const res = await fetch(`http://localhost:8081/api/v1/templates/${selectedTemplate.id}`, {
+        method: 'PUT',
+        body: formData
+      });
+
       if (res.ok) {
-        setTemplates(templates.filter(t => t.id !== id));
+        const updated = await res.json();
+        setTemplates(templates.map(t => t.id === updated.id ? updated : t));
+        setSelectedTemplate(null);
+      }
+    } catch (e) {
+      console.error("수정 실패", e);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTemplate) return;
+    if (!confirm('템플릿을 영구적으로 삭제하시겠습니까?')) return;
+
+    try {
+      const res = await fetch(`http://localhost:8081/api/v1/templates/${selectedTemplate.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTemplates(templates.filter(t => t.id !== selectedTemplate.id));
+        setSelectedTemplate(null);
       }
     } catch (e) {
       console.error("삭제 실패", e);
@@ -48,45 +85,103 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="dashboard mb-8" suppressHydrationWarning>
-      <header className="mb-8 mt-4" suppressHydrationWarning>
-        <h2 className="title-lg" suppressHydrationWarning>갤러리 대시보드</h2>
-        <p className="description-text" suppressHydrationWarning>업로드한 디자인 템플릿을 한 눈에 관리하세요.</p>
-      </header>
+    <div>
+      {/* Animated Content Wrapper */}
+      <div className="at-animate-fade-up">
+        <header className="at-mb-12">
+          <h2 className="serif at-h1 at-gradient-text" style={{ fontSize: '3rem' }}>보관함</h2>
+          <p className="at-desc" style={{ fontSize: '1.2rem' }}>총 <strong style={{ color: 'var(--color-at-leather)' }}>{templates.length}개</strong>의 마스터 템플릿이 전시 중입니다.</p>
+        </header>
 
-      <section suppressHydrationWarning>
-        <div className="flex-row justify-between align-center border-bottom pb-2 mb-4" suppressHydrationWarning>
-          <h3 className="title-sm" suppressHydrationWarning>보유 중인 템플릿</h3>
-          <span className="premium-glass p-2 rounded-full text-xs" suppressHydrationWarning>
-            총 {templates.length}건
-          </span>
-        </div>
-        
-        {templates.length === 0 ? (
-          <div className="premium-glass p-10 text-center mt-8 text-secondary-color" suppressHydrationWarning>
-            아직 업로드된 템플릿이 없습니다. 좌측 메뉴에서 템플릿을 추가해주세요!
-          </div>
-        ) : (
-          <div className="gallery-grid" suppressHydrationWarning>
-            {templates.map(temp => (
-              <div key={temp.id} className="premium-glass gallery-card" suppressHydrationWarning>
-                <div className="gallery-img-wrapper" suppressHydrationWarning>
-                  <img src={temp.s3OriginalImageUrl} alt={temp.templateName} suppressHydrationWarning />
+        <section>
+          {templates.length === 0 ? (
+            <div className="at-card at-text-center" style={{ padding: '8rem 2rem', background: '#fafafa', borderStyle: 'dashed' }}>
+              <p className="at-desc at-mb-12">템플릿 보관함이 비어있습니다.</p>
+              <button onClick={() => window.location.href = '/admin/upload'} className="at-btn" style={{ width: 'auto', margin: '0 auto' }}>
+                첫 번째 템플릿 등록
+              </button>
+            </div>
+          ) : (
+            <div className="at-gallery-grid">
+              {templates.map(temp => (
+                <div key={temp.id} className="at-card at-animate-fade-up" style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => handleOpenEdit(temp)}>
+                  <div className="at-aspect-square at-rounded-xl overflow-hidden" style={{ background: '#f5f5f5', border: '1px solid var(--border-at-light)' }}>
+                    <img src={temp.s3OriginalImageUrl} alt={temp.templateName} className="at-img-cover" />
+                  </div>
+                  <div style={{ padding: '1.5rem 0.75rem' }}>
+                    <h4 className="at-h3" style={{ fontSize: '1.25rem', marginBottom: '0.4rem' }}>{temp.templateName}</h4>
+                    <p className="at-desc" style={{ fontSize: '0.85rem', letterSpacing: '0.05em' }}>
+                      {new Date(temp.registrationDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
                 </div>
-                <div className="p-4" suppressHydrationWarning>
-                  <h4 className="title-sm mb-2" suppressHydrationWarning>{temp.templateName}</h4>
-                  <p className="text-secondary-color text-xs mb-4" suppressHydrationWarning>
-                    등록일: {new Date(temp.registrationDate).toLocaleDateString()}
-                  </p>
-                  <button onClick={() => deleteTemplate(temp.id)} className="btn btn-danger w-full p-2" suppressHydrationWarning>
-                    삭제하기
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Detail Setup Modal - Moved outside to cover entire screen including sidebar */}
+      {selectedTemplate && (
+        <div className="at-modal-overlay" onClick={() => setSelectedTemplate(null)}>
+          <div className="at-modal-content" onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '4rem' }}>
+              <header className="at-mb-12 at-text-center">
+                <p className="at-desc" style={{ fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '1rem' }}>Template Detail</p>
+                <h2 className="serif at-h2" style={{ fontSize: '2.5rem' }}>템플릿 상세 설정</h2>
+              </header>
+
+              <form onSubmit={handleUpdate} className="at-flex-col" style={{ gap: '2.5rem' }}>
+                <div className="at-flex-col" style={{ gap: '1rem' }}>
+                  <label className="serif at-h3" style={{ fontSize: '1.1rem' }}>마스터 이미지 교체</label>
+                  <div className="at-upload-zone" style={{ height: '280px', borderRadius: '1.5rem', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.05)' }}>
+                    <img src={editPreview} alt="Preview" className="at-img-cover" />
+                    <div className="at-absolute-overlay" style={{ opacity: 0, zIndex: 10 }}>
+                      <input
+                        type="file" accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) { setEditImage(file); setEditPreview(URL.createObjectURL(file)); }
+                        }}
+                        style={{ width: '100%', height: '100%', cursor: 'pointer' }}
+                      />
+                    </div>
+                    <div className="at-absolute-overlay" style={{ background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s' }}>
+                      <span style={{ color: '#fff', fontWeight: 600 }}>클릭하여 이미지 변경</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="at-flex-col" style={{ gap: '1rem' }}>
+                  <label className="serif at-h3" style={{ fontSize: '1.1rem' }}>템플릿 명칭</label>
+                  <input
+                    type="text" value={editName} onChange={e => setEditName(e.target.value)} required
+                    className="at-input"
+                    style={{ fontSize: '1.1rem', padding: '1.5rem' }}
+                  />
+                </div>
+
+                <div className="at-flex-row at-mt-12" style={{ gap: '1rem' }}>
+                  <button type="submit" className="at-btn" disabled={isUpdating} style={{ flex: 2, padding: '1.5rem' }}>
+                    {isUpdating ? '저장 중...' : '변경 사항 저장'}
+                  </button>
+                  <button type="button" onClick={handleDelete} className="at-btn-outline" style={{ flex: 1, color: '#ef4444', borderColor: '#fee2e2', background: '#fef2f2' }}>
+                    영구 삭제
                   </button>
                 </div>
-              </div>
-            ))}
+              </form>
+
+              <button
+                onClick={() => setSelectedTemplate(null)}
+                className="at-desc at-mt-12 at-w-full at-text-center"
+                style={{ fontSize: '0.95rem', fontWeight: 600, textDecoration: 'underline', marginTop: '3rem' }}
+              >
+                창 닫기
+              </button>
+            </div>
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </div>
   );
 }

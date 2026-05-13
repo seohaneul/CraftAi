@@ -18,45 +18,49 @@ export default function PortalPage() {
   }, [router]);
 
   return (
-    <div className="full-viewport-center" suppressHydrationWarning>
-      <header className="portal-header" suppressHydrationWarning>
-        <h1 className="premium-text-gradient title-xl" suppressHydrationWarning>
-          {username} 스튜디오 환영합니다
-        </h1>
-        <p className="description-text" suppressHydrationWarning>어떤 모드로 접속하시겠습니까?</p>
-      </header>
+    <div className="at-center-flex">
+      <div className="at-viewport at-animate-fade-up">
+        <header className="at-text-center at-mb-12">
+          <h1 className="serif at-h1 at-mb-12">
+            Welcome to <span className="at-gradient-text">{username}</span> AiTelier
+          </h1>
+          <p className="at-desc">디지털로 확장되는 가죽 공예의 새로운 가능성</p>
+        </header>
 
-      <div className="portal-card-grid" suppressHydrationWarning>
-        <Link href="/admin" className="no-underline" suppressHydrationWarning>
-          <div className="premium-glass gallery-card portal-card" suppressHydrationWarning>
-            <span className="portal-icon" suppressHydrationWarning>👨‍💼</span>
-            <div suppressHydrationWarning>
-              <h2 className="title-md mb-4" suppressHydrationWarning>사장님 관리 모드</h2>
-              <p className="text-secondary-color lh-1-5 text-sm" suppressHydrationWarning>
-                스토어의 템플릿과 가죽<br/>스와치를 데이터베이스에<br/>등록하고 관리합니다.
+        <div className="at-grid-2">
+          <Link href="/admin">
+            <div className="at-card at-flex-col at-text-center align-center h-full">
+              <div className="serif at-h1" style={{ opacity: 0.1, fontSize: '6rem', marginBottom: '-1rem' }}>M</div>
+              <h2 className="at-h2">아틀리에 관리</h2>
+              <p className="at-desc at-flex-1">
+                디자인 템플릿과 가죽 소재를<br/>
+                체계적으로 등록하고 관리하는<br/>
+                전문가용 마스터 패널입니다.
               </p>
+              <div className="at-btn at-w-full">관리자 모드 입장</div>
             </div>
-            <button className="btn btn-primary w-full mt-4 p-4" suppressHydrationWarning>백오피스 열기</button>
-          </div>
-        </Link>
+          </Link>
 
-        <Link href="/customer" className="no-underline" suppressHydrationWarning>
-          <div className="premium-glass gallery-card portal-card" suppressHydrationWarning>
-            <span className="portal-icon" suppressHydrationWarning>🧑‍🎨</span>
-            <div suppressHydrationWarning>
-              <h2 className="title-md mb-4" suppressHydrationWarning>고객 쇼룸 모드</h2>
-              <p className="text-secondary-color lh-1-5 text-sm" suppressHydrationWarning>
-                아이패드 등에 띄워두고<br/>실제 매장 고객들이 AI 디자인을<br/>생성해 볼 수 있는 화면입니다.
+          <Link href="/customer">
+            <div className="at-card at-flex-col at-text-center align-center h-full">
+              <div className="serif at-h1" style={{ opacity: 0.1, fontSize: '6rem', marginBottom: '-1rem' }}>S</div>
+              <h2 className="at-h2">비주얼 쇼룸</h2>
+              <p className="at-desc at-flex-1">
+                고객이 직접 소재를 선택하고<br/>
+                AI가 구현하는 실시간 렌더링을<br/>
+                경험하는 인터랙티브 공간입니다.
               </p>
+              <div className="at-btn at-w-full">쇼룸 열기</div>
             </div>
-            <button className="btn btn-danger w-full mt-4 p-4" suppressHydrationWarning>쇼룸 화면 띄우기</button>
-          </div>
-        </Link>
+          </Link>
+        </div>
+        
+        <div className="at-text-center at-mt-12" style={{ position: 'relative', zIndex: 100 }}>
+          <button onClick={() => { localStorage.clear(); router.push('/'); }} className="at-btn-outline">
+            로그아웃 및 계정 전환
+          </button>
+        </div>
       </div>
-      
-      <button onClick={() => { localStorage.clear(); router.push('/'); }} className="btn portal-logout-btn" suppressHydrationWarning>
-        다른 계정으로 로그인하기
-      </button>
     </div>
   );
 }

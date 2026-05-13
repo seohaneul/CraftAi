@@ -34,4 +34,18 @@ public class TemplateService {
     public void deleteTemplate(Long id) {
         adminTemplateRepository.deleteById(id);
     }
+
+    public AdminTemplate updateTemplate(Long id, String templateName, MultipartFile imageFile) throws IOException {
+        AdminTemplate template = adminTemplateRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Template not found"));
+        
+        template.setTemplateName(templateName);
+        
+        if (imageFile != null && !imageFile.isEmpty()) {
+            String imageUrl = s3StorageService.uploadFile(imageFile);
+            template.setS3OriginalImageUrl(imageUrl);
+        }
+        
+        return adminTemplateRepository.save(template);
+    }
 }

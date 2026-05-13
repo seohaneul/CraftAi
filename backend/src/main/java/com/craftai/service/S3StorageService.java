@@ -10,6 +10,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.UUID;
 
@@ -19,15 +20,19 @@ public class S3StorageService {
     @Value("${aws.s3.bucket}")
     private String bucketName;
 
-    private final S3Client s3Client;
+    @Value("${AWS_ACCESS_KEY_ID}")
+    private String accessKey;
 
-    public S3StorageService() {
+    @Value("${AWS_SECRET_ACCESS_KEY}")
+    private String secretKey;
+
+    private S3Client s3Client;
+
+    @PostConstruct
+    public void init() {
         this.s3Client = S3Client.builder()
                 .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(
-                                System.getProperty("AWS_ACCESS_KEY_ID"),
-                                System.getProperty("AWS_SECRET_ACCESS_KEY")
-                        )
+                        AwsBasicCredentials.create(accessKey, secretKey)
                 ))
                 .region(Region.AP_NORTHEAST_2)
                 .build();

@@ -8,7 +8,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/templates")
-@CrossOrigin(origins = "*")
 public class TemplateController {
 
     private final TemplateService templateService;
@@ -39,5 +38,18 @@ public class TemplateController {
     public ResponseEntity<?> deleteTemplate(@PathVariable Long id) {
         templateService.deleteTemplate(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateTemplate(
+            @PathVariable Long id,
+            @RequestParam("templateName") String templateName,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        try {
+            AdminTemplate updated = templateService.updateTemplate(id, templateName, image);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error updating template: " + e.getMessage());
+        }
     }
 }

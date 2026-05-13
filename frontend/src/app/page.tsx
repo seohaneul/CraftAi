@@ -13,64 +13,68 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isLogin ? '/api/v1/auth/login' : '/api/v1/auth/register';
-    const role = 'COMPANY'; // 무조건 회사(가죽공방) 자격으로 가입됨
-
     setStatus('인증 진행 중...');
 
     try {
       const res = await fetch(`http://localhost:8081${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role })
+        body: JSON.stringify({ username, password, role: 'COMPANY' })
       });
       
       const data = await res.json();
-      
       if (res.ok) {
         localStorage.setItem('userRole', 'COMPANY');
         localStorage.setItem('username', data.username || username);
-        
-        // 로그인 성공 시 회사 분기 포털 화면으로 이동
         router.push('/portal');
       } else {
-        setStatus(data.message || '인증 실패');
+        setStatus(data.message || '인증에 실패했습니다.');
       }
     } catch (err) {
-      setStatus('서버 연결 실패');
+      setStatus('서버 연결에 실패했습니다.');
     }
   };
 
   return (
-    <div className="full-viewport-center" suppressHydrationWarning>
-      <form onSubmit={handleAuth} className="premium-glass login-form" suppressHydrationWarning>
-        <h2 className="premium-text-gradient title-lg text-center" suppressHydrationWarning>
-          CraftAI
-        </h2>
-        <p className="text-secondary-color text-center mb-4" suppressHydrationWarning>
-          {isLogin ? '파트너 공방 전용 로그인' : '새로운 파트너 공방으로 가입하세요'}
-        </p>
+    <div className="at-center-flex">
+      <div className="at-card at-animate-fade-up" style={{ maxWidth: '480px', width: '100%' }}>
+        <div className="at-text-center at-mb-12">
+          <h1 className="serif at-h2 at-gradient-text">AiTelier</h1>
+          <p className="at-desc">
+            {isLogin ? '장인의 아틀리에에 오신 것을 환영합니다' : '새로운 공방 파트너십을 시작하세요'}
+          </p>
+        </div>
         
-        <input 
-          type="text" placeholder="공방 아이디 (회사명)" value={username} onChange={e => setUsername(e.target.value)} required
-          className="login-input"
-          suppressHydrationWarning
-        />
-        <input 
-          type="password" placeholder="비밀번호" value={password} onChange={e => setPassword(e.target.value)} required
-          className="login-input"
-          suppressHydrationWarning
-        />
-        
-        {status && <div className="error-text" suppressHydrationWarning>{status}</div>}
-        
-        <button type="submit" className="btn btn-primary mt-4 p-4 text-lg" suppressHydrationWarning>
-          {isLogin ? '로그인 들어가기' : '파트너 파트너스 가입하기'}
-        </button>
-        
-        <button type="button" onClick={() => setIsLogin(!isLogin)} className="link-btn" suppressHydrationWarning>
-          {isLogin ? '제휴 공방 등록하기 (회원가입)' : '이미 로그인 계정이 있습니다'}
-        </button>
-      </form>
+        <form onSubmit={handleAuth} className="at-flex-col">
+          <div className="at-flex-col" style={{ gap: '0.75rem' }}>
+            <label className="at-h3" style={{ fontSize: '0.9rem' }}>공방 식별 코드</label>
+            <input 
+              type="text" placeholder="아이디 또는 회사명" value={username} onChange={e => setUsername(e.target.value)} required
+              className="at-input"
+            />
+          </div>
+
+          <div className="at-flex-col" style={{ gap: '0.75rem' }}>
+            <label className="at-h3" style={{ fontSize: '0.9rem' }}>비밀번호</label>
+            <input 
+              type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required
+              className="at-input"
+            />
+          </div>
+          
+          {status && <div className="at-text-center" style={{ color: '#ef4444', fontWeight: 600, fontSize: '0.9rem' }}>{status}</div>}
+          
+          <button type="submit" className="at-btn at-mt-12">
+            {isLogin ? '아틀리에 입장' : '파트너 등록 완료'}
+          </button>
+        </form>
+
+        <div className="at-text-center at-mt-12" style={{ position: 'relative', zIndex: 100 }}>
+          <button type="button" onClick={() => setIsLogin(!isLogin)} className="at-desc" style={{ fontSize: '0.9rem', textDecoration: 'underline', cursor: 'pointer', pointerEvents: 'auto' }}>
+            {isLogin ? '아직 파트너가 아니신가요? 가입하기' : '이미 계정이 있으신가요? 로그인'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

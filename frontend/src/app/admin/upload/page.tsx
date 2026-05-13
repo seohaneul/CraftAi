@@ -3,40 +3,35 @@
 import { useState, useEffect } from 'react';
 
 export default function UploadTemplatePage() {
-  const [adminId, setAdminId] = useState('admin123');
+  const [adminId, setAdminId] = useState('admin');
   const [templateName, setTemplateName] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // 로컬스토리지에 저장된 유저명 가져오기
   useEffect(() => {
     const savedName = localStorage.getItem('username');
     if (savedName) setAdminId(savedName);
   }, []);
 
-  // 이미지가 선택되면 미리보기(Preview) 렌더링
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setImage(file);
       setPreview(URL.createObjectURL(file));
-    } else {
-      setImage(null);
-      setPreview(null);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!image || !templateName) {
-      setStatus('템플릿 이름과 이미지를 모두 입력해주세요.');
+      setStatus('이름과 이미지를 모두 입력해주세요.');
       return;
     }
 
     setIsUploading(true);
-    setStatus('S3에 업로드 중입니다...');
+    setStatus('클라우드 서버에 안전하게 등록 중입니다...');
     const formData = new FormData();
     formData.append('adminId', adminId);
     formData.append('templateName', templateName);
@@ -49,97 +44,71 @@ export default function UploadTemplatePage() {
       });
 
       if (res.ok) {
-        setStatus('성공적으로 업로드되었습니다! 🎉');
-        setTimeout(() => {
-          window.location.href = '/admin'; // 갤러리로 자동 복귀
-        }, 1500);
+        setStatus('성공적으로 등록되었습니다! 🎉');
+        setTimeout(() => { window.location.href = '/admin'; }, 1500);
       } else {
-        setStatus('업로드 실패: 서버 오류');
+        setStatus('업로드 중 오류가 발생했습니다.');
         setIsUploading(false);
       }
     } catch (error: any) {
-      setStatus('업로드 실패: 서버 연결에 실패했습니다.');
+      setStatus('서버 연결 실패. 나중에 다시 시도해주세요.');
       setIsUploading(false);
     }
   };
 
   return (
-    <div className="w-full mt-4" suppressHydrationWarning>
-      <header className="mb-8" suppressHydrationWarning>
-        <h2 className="premium-text-gradient title-lg" suppressHydrationWarning>
-          디자인 템플릿 등록
-        </h2>
-        <p className="description-text" suppressHydrationWarning>
-          고객이 상상 속 가죽 소품을 그려볼 수 있도록, 기본 뼈대가 될 사진을 올려주세요.
-        </p>
+    <div className="at-animate-fade-up">
+      <header className="at-mb-12">
+        <h2 className="serif at-h2">새로운 템플릿 등록</h2>
+        <p className="at-desc">고객 쇼룸에 전시할 새로운 상품 베이스를 안전하게 업로드합니다.</p>
       </header>
 
-      <form onSubmit={handleSubmit} className="premium-glass p-10 flex-column gap-6" suppressHydrationWarning>
-        
-        <div className="flex-row gap-8 align-stretch" suppressHydrationWarning>
-          {/* 왼쪽: 이미지 미리보기 및 업로드 (Drag & Drop 느낌 스타일링) */}
-          <div className="flex-1-2" suppressHydrationWarning>
-            <label className="text-bold text-primary-color block mb-4 title-sm" suppressHydrationWarning>1. 사진 찾기</label>
-            <div 
-              className={`customer-upload-box ${preview ? 'border-accent' : 'border-dashed'}`}
-              suppressHydrationWarning
-            >
+      <div className="at-card" style={{ maxWidth: '900px' }}>
+        <form onSubmit={handleSubmit} className="at-flex-row">
+          {/* Left: Image Upload Zone */}
+          <div className="at-flex-1">
+            <label className="at-h3 at-mb-12" style={{ display: 'block', fontSize: '1rem' }}>1. 템플릿 이미지</label>
+            <div className="at-upload-zone">
               {preview ? (
-                <img src={preview} alt="미리보기" className="w-full h-full object-cover rounded-xl" suppressHydrationWarning />
+                <img src={preview} alt="Preview" className="at-img-cover" />
               ) : (
-                <div className="text-secondary-color text-center p-8" suppressHydrationWarning>
-                  <span className="text-5xl block mb-4" suppressHydrationWarning>📥</span>
-                  <p className="text-bold mb-4" suppressHydrationWarning>여기를 클릭하여 사진을 올리세요</p>
-                  <span className="btn premium-glass-btn" suppressHydrationWarning>컴퓨터에서 찾기</span>
+                <div className="at-text-center">
+                  <span style={{ fontSize: '3.5rem', display: 'block', marginBottom: '1rem' }}>🖼️</span>
+                  <p className="at-desc" style={{ fontSize: '0.9rem' }}>이미지 파일을 선택하세요</p>
                 </div>
               )}
-              {/* 투명한 Input이 위를 전부 덮고 있어서 어디를 클릭해도 업로드 동작 */}
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageChange} 
-                required 
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                suppressHydrationWarning
-              />
+              <input type="file" accept="image/*" onChange={handleImageChange} required className="at-absolute-overlay" />
             </div>
-            {preview && <p className="text-center mt-4 text-secondary-color text-xs" suppressHydrationWarning>사진을 다시 고르려면 이곳을 다시 클릭하세요.</p>}
           </div>
 
-          {/* 오른쪽: 입력 폼 및 확정 버튼 */}
-          <div className="flex-1 flex-column gap-8" suppressHydrationWarning>
-            <div suppressHydrationWarning>
-              <label className="text-bold text-primary-color block mb-4 title-sm" suppressHydrationWarning>2. 템플릿 이름</label>
+          {/* Right: Info Area */}
+          <div className="at-flex-1 at-flex-col" style={{ justifyContent: 'space-between' }}>
+            <div className="at-flex-col" style={{ gap: '1rem' }}>
+              <label className="at-h3" style={{ fontSize: '1rem' }}>2. 템플릿 명칭</label>
               <input 
-                type="text" 
-                value={templateName} 
-                onChange={(e) => setTemplateName(e.target.value)} 
-                required 
-                placeholder="예: 블랙 사피아노 토트백"
-                className="login-input w-full p-4 text-lg"
-                suppressHydrationWarning
+                type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} required 
+                placeholder="예: 타임리스 가죽 백"
+                className="at-input"
               />
+              <p className="at-desc" style={{ fontSize: '0.8rem' }}>쇼룸에서 고객들에게 표시될 이름입니다.</p>
             </div>
 
-            <div className="mt-auto flex-column gap-4" suppressHydrationWarning>
+            <div className="at-mt-12">
               {status && (
-                <p className={`text-bold text-sm ${status.includes('성공') ? 'text-green-color' : 'text-accent-color'}`} suppressHydrationWarning>
+                <p className={`at-text-center at-mb-12`} style={{ fontSize: '0.9rem', fontWeight: 600, color: status.includes('성공') ? '#10b981' : 'var(--color-at-leather)' }}>
                   {status}
                 </p>
               )}
-              <button 
-                type="submit" 
-                className="btn btn-primary w-full p-4 text-lg text-bold" 
-                disabled={isUploading}
-                style={{ opacity: isUploading ? 0.7 : 1 }}
-                suppressHydrationWarning
-              >
-                {isUploading ? '업로드 중...' : '클라우드에 등록하기 🚀'}
+              <button type="submit" className="at-btn at-w-full" disabled={isUploading}>
+                {isUploading ? '등록 진행 중...' : '보관함에 저장하기'}
+              </button>
+              <button type="button" onClick={() => window.location.href='/admin'} className="at-btn-outline at-w-full at-mt-12" style={{ width: '100%' }}>
+                취소하고 돌아가기
               </button>
             </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/swatches")
-@CrossOrigin(origins = "*")
 public class SwatchController {
     private final LeatherSwatchRepository repository;
 

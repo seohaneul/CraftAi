@@ -12,7 +12,7 @@ import java.io.IOException;
 @Service
 public class AiProcessingService {
 
-    @Value("${NEXT_PUBLIC_AI_API_URL:http://localhost:8000}")
+    @Value("${ai.server.url}")
     private String aiApiUrl;
 
     private final S3StorageService s3StorageService;

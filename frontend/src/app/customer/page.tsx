@@ -8,6 +8,13 @@ interface Template {
   s3OriginalImageUrl: string;
 }
 
+interface HistoryItem {
+  id: string;
+  url: string;
+  templateName: string;
+  date: string;
+}
+
 export default function CustomerPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -16,44 +23,74 @@ export default function CustomerPage() {
   const [resultImg, setResultImg] = useState('');
   const [status, setStatus] = useState('');
   const [username, setUsername] = useState('고객님');
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
-    // 하이드레이션 과정에서 생길 수 있는 빈 스타일 속성을 클라이언트 사이드에서만 안전하게 제거
-    if (typeof document !== 'undefined' && document.body.getAttribute("style") === "") {
-      document.body.removeAttribute("style");
-    }
-
     const comName = localStorage.getItem('username');
     if (comName) {
       setUsername(comName);
       fetch(`http://localhost:8081/api/v1/templates/${comName}`)
         .then(res => res.json())
-        .then(data => setTemplates(data))
-        .catch(e => console.error(e));
-    } else {
-      window.location.href = '/';
+        .then(data => {
+          if (Array.isArray(data)) {
+            setTemplates(data);
+            if (data.length > 0) setSelectedTemplate(data[0]);
+          }
+        })
+        .catch(e => console.error('Fetch Templates Error:', e));
+    }
+
+    // Load history from local storage with error handling
+    try {
+      const savedHistory = localStorage.getItem('aitelier_history');
+      if (savedHistory) {
+        const parsed = JSON.parse(savedHistory);
+        if (Array.isArray(parsed)) {
+          setHistory(parsed);
+        }
+      }
+    } catch (e) {
+      console.error('History Load Error:', e);
+      localStorage.removeItem('aitelier_history');
     }
   }, []);
+
+  const saveToHistory = (url: string, templateName: string) => {
+    const newItem: HistoryItem = {
+      id: Date.now().toString(),
+      url,
+      templateName,
+      date: new Date().toLocaleString()
+    };
+    const updated = [newItem, ...history];
+    setHistory(updated);
+    localStorage.setItem('aitelier_history', JSON.stringify(updated));
+  };
+
+  const deleteFromHistory = (id: string) => {
+    const updated = history.filter(item => item.id !== id);
+    setHistory(updated);
+    localStorage.setItem('aitelier_history', JSON.stringify(updated));
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setMyImage(file);
       setPreviewImage(URL.createObjectURL(file));
-    } else {
-      setMyImage(null);
-      setPreviewImage(null);
     }
   };
 
   const handleAiProcessing = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!myImage || !selectedTemplate) {
-      setStatus('템플릿과 가죽(소재) 사진을 모두 골라주세요.');
+      setStatus('가죽 소재를 선택해주세요.');
       return;
     }
 
-    setStatus('AI가 가죽의 질감을 템플릿 디자인에 입히는 중입니다... (약 2초 대기)');
+    setLoading(true);
+    setStatus('AI가 프리미엄 가죽의 질감을 템플릿에 입히는 중입니다...');
 
     try {
       const formData = new FormData();
@@ -67,124 +104,133 @@ export default function CustomerPage() {
 
       const data = await res.json();
       if (res.ok) {
-        setStatus('✨ 매력적인 가죽 제품 디자인이 완성되었습니다!');
+        setStatus('✨ 매력적인 디자인이 완성되었습니다.');
         setResultImg(data.result_image_url);
+        saveToHistory(data.result_image_url, selectedTemplate.templateName);
       } else {
-        setStatus('서버 에러가 발생했습니다.');
+        setStatus('서버 요청 중 오류가 발생했습니다.');
       }
     } catch (err) {
-      setStatus('AI 백엔드 서버 연결을 확인해주세요!');
+      setStatus('AI 서버와의 연결을 확인해주세요.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="customer-container" suppressHydrationWarning>
-      <header className="customer-header" suppressHydrationWarning>
-        <div suppressHydrationWarning>
-          <h1 className="premium-text-gradient" suppressHydrationWarning>
-            {username} 맞춤 디자인 쇼룸
-          </h1>
-          <p className="customer-subtitle" suppressHydrationWarning>
-            찍어온 가죽 사진과 마음에 드는 디자인을 골라 합성 결과를 확인해보세요.
-          </p>
+    <div className="at-viewport at-animate-fade-up" style={{ maxWidth: '1400px' }}>
+      <header className="at-mb-12 at-flex-row justify-between align-center">
+        <div>
+          <h1 className="serif at-h1 at-gradient-text">{username} 아틀리에</h1>
+          <p className="at-desc">마스터 템플릿에 나만의 감성을 입혀보세요.</p>
         </div>
-        <button onClick={() => window.location.href = '/portal'} className="btn premium-glass text-primary-color" suppressHydrationWarning>이전으로</button>
+        <button onClick={() => window.location.href = '/portal'} className="at-btn-outline">
+           ⬅️ 포털로 돌아가기
+        </button>
       </header>
 
-      <div className="customer-content-layout" suppressHydrationWarning>
-        {/* 왼쪽 갤러리 (템플릿 선택) */}
-        <section className="customer-gallery-section" suppressHydrationWarning>
-          <h2 className="title-section" suppressHydrationWarning>1. 원하는 디자인 베이스(템플릿) 선택</h2>
-
-          <div className="customer-gallery-grid" suppressHydrationWarning>
-            {templates.map(t => {
-              const isSelected = selectedTemplate?.id === t.id;
-              return (
-                <div
-                  key={t.id}
-                  className={`premium-glass gallery-card customer-gallery-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedTemplate(t)}
-                  suppressHydrationWarning
-                >
-                  <div className="gallery-img-wrapper">
-                    <img src={t.s3OriginalImageUrl} alt={t.templateName} />
-                  </div>
-                  <div className="card-footer text-center p-4">
-                    <strong className="title-sm">{t.templateName}</strong>
-                    {isSelected && <span className="text-accent-color mt-4 block text-sm">선택됨 ✔️</span>}
-                  </div>
-                </div>
-              );
-            })}
-            {templates.length === 0 && <p className="text-secondary-color text-center p-8">스토어에 등록된 샘플 템플릿이 없습니다.</p>}
-          </div>
-        </section>
-
-        {/* 오른쪽 사용자 가죽 업로드 및 결과물 확인 */}
-        <section className="customer-upload-section" suppressHydrationWarning>
-          <div className="premium-glass customer-card-padding" suppressHydrationWarning>
-            <h2 className="title-section mb-8" suppressHydrationWarning>📸 내 가죽과 아이템 매칭하기</h2>
-
-            <form onSubmit={handleAiProcessing} className="customer-form" suppressHydrationWarning>
-              <div suppressHydrationWarning>
-                <label className="customer-label" suppressHydrationWarning>
-                  2. 직접 촬영한 가죽이나 스와치(질감) 사진 올리기
-                </label>
-                <div
-                  className={`customer-upload-box ${previewImage ? 'border-accent' : 'border-dashed'}`}
-                  suppressHydrationWarning
-                >
-                  {previewImage ? (
-                    <img src={previewImage} alt="미리보기" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-secondary-color text-center p-8" suppressHydrationWarning>
-                      <span className="text-5xl block mb-2">📤</span>
-                      <p className="m-0">클릭하여 소재 사진 첨부</p>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    suppressHydrationWarning
-                  />
-                </div>
+      {/* 1. Template Navigation Bar */}
+      <section className="at-card at-mb-12" style={{ padding: '1rem 2rem' }}>
+        <h3 className="at-h3 at-mb-12" style={{ fontSize: '0.9rem', opacity: 0.6 }}>템플릿 베이스 선택</h3>
+        <div className="at-template-navbar">
+          {templates.map(t => (
+            <div 
+              key={t.id} 
+              className={`at-nav-template-item ${selectedTemplate?.id === t.id ? 'active' : ''}`}
+              onClick={() => setSelectedTemplate(t)}
+            >
+              <div className="at-aspect-square at-rounded-lg overflow-hidden at-mb-12" style={{ marginBottom: '0.75rem', border: '1px solid var(--border-at-light)' }}>
+                <img src={t.s3OriginalImageUrl} alt={t.templateName} className="at-img-cover" />
               </div>
+              <p className="at-text-center" style={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.templateName}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-              {selectedTemplate ? (
-                <div className="customer-selection-info active" suppressHydrationWarning>
-                  현재 선택된 템플릿: <strong className="text-bold">{selectedTemplate.templateName}</strong>
+      <div className="at-grid-2" style={{ gridTemplateColumns: '1fr 340px', gap: '2.5rem', alignItems: 'start' }}>
+        {/* 2. Main Rendering & Result Zone */}
+        <div className="at-flex-col" style={{ gap: '2.5rem' }}>
+          <div className="at-card">
+            <h2 className="at-h3 at-mb-12">디자인 렌더링</h2>
+            <form onSubmit={handleAiProcessing} className="at-flex-row align-start" style={{ gap: '2rem' }}>
+              <div className="at-upload-zone" style={{ flex: 1, height: '300px' }}>
+                {previewImage ? (
+                  <img src={previewImage} alt="Preview" className="at-img-cover" />
+                ) : (
+                  <div className="at-text-center">
+                    <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>📸</span>
+                    <p className="at-desc" style={{ fontSize: '0.9rem' }}>가죽 샘플을 업로드하세요</p>
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={handleImageChange} className="at-absolute-overlay" />
+              </div>
+              
+              <div className="at-flex-1 at-flex-col" style={{ justifyContent: 'center', height: '300px' }}>
+                <div className="at-card" style={{ background: 'var(--bg-at-primary)', padding: '1.5rem', border: 'none' }}>
+                  <p className="at-desc" style={{ fontSize: '0.8rem', marginBottom: '0.5rem', fontWeight: 800 }}>SELECTED BASE</p>
+                  <p className="serif at-h3">{selectedTemplate?.templateName || '템플릿을 선택해주세요'}</p>
                 </div>
-              ) : (
-                <div className="customer-selection-info empty" suppressHydrationWarning>
-                  좌측에서 원하시는 디자인 템플릿을 먼저 클릭해주세요.
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="btn btn-primary customer-submit-btn"
-                disabled={!selectedTemplate || !myImage}
-                style={{ opacity: (!selectedTemplate || !myImage) ? 0.5 : 1 }}
-                suppressHydrationWarning
-              >
-                ✨ AI 디자인 렌더링 시작
-              </button>
+                <button 
+                  type="submit" 
+                  className="at-btn at-w-full" 
+                  disabled={!selectedTemplate || !myImage || loading}
+                  style={{ padding: '1.5rem' }}
+                >
+                  {loading ? 'AI 아티스트 작업 중...' : '✨ 실사 렌더링 시작'}
+                </button>
+                {status && <p className="at-mt-12 at-text-center" style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-at-leather)' }}>{status}</p>}
+              </div>
             </form>
+          </div>
 
-            {status && <p className="mt-4 text-accent-color text-bold" suppressHydrationWarning>{status}</p>}
-
-            {resultImg && (
-              <div className="customer-result-area" suppressHydrationWarning>
-                <h3 className="title-sm mb-4 text-primary-color" suppressHydrationWarning>결과물 프리뷰</h3>
-                <img src={resultImg} alt="AI 합성 결과" className="w-full rounded-xl border-accent shadow-glow" suppressHydrationWarning />
+          {resultImg && (
+            <div className="at-card at-animate-fade-up">
+              <h3 className="at-h3 at-mb-12">최종 결과물</h3>
+              <div className="at-rounded-xl overflow-hidden" style={{ border: '4px solid #fff', boxShadow: '0 20px 50px rgba(0,0,0,0.1)' }}>
+                <img src={resultImg} alt="AI Result" className="at-w-full" style={{ display: 'block' }} />
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3. History Archive */}
+        <aside className="at-history-panel">
+          <header className="at-mb-12 at-flex-row justify-between align-center">
+            <h3 className="at-h3" style={{ fontSize: '1.1rem' }}>아틀리에 아카이브</h3>
+            <span className="at-step-badge" style={{ margin: 0 }}>{history.length}</span>
+          </header>
+          
+          <div className="at-history-list">
+            {history.length === 0 ? (
+              <div className="at-text-center at-mt-12" style={{ padding: '2rem', opacity: 0.5 }}>
+                <p className="at-desc" style={{ fontSize: '0.85rem' }}>생성된 기록이 없습니다.</p>
+              </div>
+            ) : (
+              history.map(item => (
+                <div key={item.id} className="at-history-item at-animate-fade-up">
+                  <div className="at-history-delete" onClick={() => deleteFromHistory(item.id)}>✕</div>
+                  <img src={item.url} alt="History" className="at-history-img" />
+                  <div style={{ padding: '1rem' }}>
+                    <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.2rem' }}>{item.templateName}</p>
+                    <p className="at-desc" style={{ fontSize: '0.7rem' }}>{item.date}</p>
+                  </div>
+                </div>
+              ))
             )}
           </div>
-        </section>
+          
+          {history.length > 0 && (
+            <button 
+              onClick={() => { if(confirm('모든 기록을 삭제하시겠습니까?')) { setHistory([]); localStorage.removeItem('aitelier_history'); } }}
+              className="at-desc at-mt-12 at-w-full at-text-center" 
+              style={{ fontSize: '0.8rem', textDecoration: 'underline', border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              전체 기록 삭제
+            </button>
+          )}
+        </aside>
       </div>
     </div>
   );
-
 }
