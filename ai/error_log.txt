@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "C:\Users\user\Desktop\PROJECT\CraftAi\ai\main.py", line 136, in synthesize
+    output = replicate.run(
+        "stability-ai/stable-diffusion-inpainting:95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd58b6",
+    ...<7 lines>...
+        }
+    )
+  File "C:\Users\user\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\replicate\client.py", line 175, in run
+    return run(self, ref, input, use_file_output=use_file_output, **params)
+  File "C:\Users\user\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\replicate\run.py", line 46, in run
+    prediction = client.predictions.create(
+        version=version_id, input=input or {}, **params
+    )
+  File "C:\Users\user\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\replicate\prediction.py", line 497, in create
+    resp = self._client._request("POST", "/v1/predictions", json=body, **extras)
+  File "C:\Users\user\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\replicate\client.py", line 89, in _request
+    _raise_for_status(resp)
+    ~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\user\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\replicate\client.py", line 407, in _raise_for_status
+    raise ReplicateError.from_response(resp)
+replicate.exceptions.ReplicateError: ReplicateError Details:
+title: Invalid version or not permitted
+status: 422
+detail: The specified version does not exist (or perhaps you don't have permission to use it?)

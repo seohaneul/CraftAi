@@ -2,24 +2,23 @@ import os
 import io
 import base64
 import urllib.request
-import traceback
+import re
 import numpy as np
-from PIL import Image, ImageOps, ImageFilter, ImageEnhance
+from PIL import Image, ImageOps, ImageFilter, ImageDraw
 from fastapi import FastAPI
 from pydantic import BaseModel
+from google import genai
+from google.genai import types
+from dotenv import load_dotenv
 
-# === 전역 U2Net 세션 초기화 (속도 최적화) ===
-# 매 요청마다 모델을 로드하는 병목을 제거하여 합성 속도를 3배 이상 단축합니다.
-try:
-    from rembg import remove, new_session
-    print("[INFO] Loading U2Net Model into memory...")
-    u2net_session = new_session('u2net')
-    print("[SUCCESS] U2Net Model loaded successfully.")
-except Exception as e:
-    print(f"[ERROR] Failed to load U2Net Model: {e}")
-    u2net_session = None
+load_dotenv()
 
-app = FastAPI(title="CraftAI Image Synthesis API")
+# === 설정 ===
+CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "google-credentials.json")
+# 환경 변수에 구글 인증 파일 경로 등록
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CREDENTIALS_PATH
+
+app = FastAPI(title="CraftAI Luxury Imagen 3 Synthesis API")
 
 class SynthesisRequest(BaseModel):
     leather_url: str
@@ -30,151 +29,117 @@ def get_image_data(url: str):
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as res:
             return res.read()
+    except: return None
+
+def get_product_box_with_gemini(product_bytes: bytes) -> list:
+    """제미나이 1.5 플래시로 지갑의 위치를 추적"""
+    try:
+        # 인증 파일 없이 서비스 계정 자동 로드됨
+        client = genai.Client(vertexai=True, project="craft-ai-496214", location="us-central1")
+        product_part = types.Part.from_bytes(data=product_bytes, mime_type="image/png")
+        prompt = "Detect the bounding box of the main product. Return [ymin, xmin, ymax, xmax] (0-1000)."
+        res = client.models.generate_content(model="gemini-1.5-flash-002", contents=[prompt, product_part])
+        nums = re.findall(r'\d+', res.text)
+        if len(nums) >= 4:
+            return [int(n) for n in nums[:4]]
     except Exception as e:
-        print(f"[WARNING] Image download failed ({url}): {e}")
-        return None
+        print(f"[WARNING] Gemini box detection failed: {e}")
+    return [200, 200, 800, 800]
 
-def apply_texture_with_mask(leather_bytes: bytes, template_bytes: bytes) -> bytes:
-    leather_img = Image.open(io.BytesIO(leather_bytes)).convert("RGB")
-    template_img = Image.open(io.BytesIO(template_bytes)).convert("RGB")
-    
-    # 1. 원본 템플릿 해상도 기록 (최종 출력물을 무조건 이 해상도로 맞춤)
-    orig_w, orig_h = template_img.size
-    
-    # 2. OOM 방지용 리사이즈
-    max_dim = 1024
-    if orig_w > max_dim or orig_h > max_dim:
-        template_img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
-        
-    w, h = template_img.size
-
-    # === 마스크 추출 (1순위: rembg AI, 2순위: 수동 임계값) ===
-    mask = None
-    if u2net_session:
-        try:
-            # 이미지가 화면에 꽉 찬 경우(여백 없음) AI가 피사체를 배경으로 착각하는 버그 방지용 여백 추가
-            pad_size = 50
-            padded_img = ImageOps.expand(template_img, border=pad_size, fill='white')
-            isolated = remove(padded_img, session=u2net_session, post_process_mask=True)
-            mask_padded = isolated.split()[-1]
-            mask = mask_padded.crop((pad_size, pad_size, template_img.width + pad_size, template_img.height + pad_size))
-            
-            # 마스크 유효성 검사 (마스크가 아예 텅 비었을 때만 실패로 간주)
-            mask_arr = np.array(mask)
-            white_ratio = np.sum(mask_arr > 128) / mask_arr.size
-            if white_ratio <= 0.001:
-                mask = None
-        except Exception as e:
-            print(f"[ERROR] U2Net AI 마스크 에러: {e}")
-            mask = None
-
-    gray = template_img.convert("L")
-    gray_arr = np.array(gray).astype(float)
-    
-    if mask is None:
-        print("[INFO] 수동 임계값 마스크 (Threshold Mask) 생성 중...")
-        # 배경색이 흰색/밝은회색(230 이상)이라고 가정하고 누끼 따기
-        bg_mask = gray_arr > 230
-        fg_mask_arr = (~bg_mask) * 255
-        mask = Image.fromarray(fg_mask_arr.astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))
-    
-    # === 텍스처 리사이즈 및 바둑판 배열 ===
-    lw, lh = leather_img.size
-    # 텍스처가 템플릿 안에서 최소 2~3번 반복되도록 스케일 조정 (바둑판 무늬 형성)
-    target_lw = min(200, max(50, int(w * 0.4)))
-    scale = target_lw / lw if lw > 0 else 1.0
-    scaled_leather = leather_img.resize((int(lw*scale), int(lh*scale)), Image.Resampling.LANCZOS)
-    slw, slh = scaled_leather.size
-    
-    tiled_leather = Image.new("RGB", (w, h))
-    for i in range(0, w, slw):
-        for j in range(0, h, slh):
-            tiled_leather.paste(scaled_leather, (i, j))
-            
-    tiled_arr = np.array(tiled_leather)
-    
-    # === 가방 주름(명암) 정규화 및 3D 왜곡(Displacement) 래핑 ===
-    from PIL import ImageFilter, ImageEnhance
-    smooth_gray = np.array(gray.filter(ImageFilter.GaussianBlur(5.0))).astype(float)
-    
-    # 명암을 0~1로 정규화하여 가죽이 너무 어두워지지 않도록 방지
-    g_min = gray_arr.min()
-    g_max = gray_arr.max()
-    fg = (gray_arr - g_min) / (g_max - g_min + 1e-5)
-    
-    dy, dx = np.gradient(smooth_gray)
-    distortion_strength = 2.5 
-    
-    Y, X = np.mgrid[0:h, 0:w]
-    map_y = np.clip(Y + dy * distortion_strength, 0, h - 1).astype(int)
-    map_x = np.clip(X + dx * distortion_strength, 0, w - 1).astype(int)
-    
-    warped_leather_arr = tiled_arr[map_y, map_x, :]
-    
-    # === Hard Light 블렌딩 (가죽 텍스처 + 가방 명암) ===
-    bg = warped_leather_arr.astype(float) / 255.0
-    
-    result = np.zeros_like(bg)
-    cond = fg > 0.5
-    for c in range(3):
-        bg_channel = bg[:,:,c]
-        res_channel = np.empty_like(bg_channel)
-        res_channel[~cond] = 2.0 * fg[~cond] * bg_channel[~cond]
-        res_channel[cond] = 1.0 - 2.0 * (1.0 - fg[cond]) * (1.0 - bg_channel[cond])
-        result[:,:,c] = res_channel
-        
-    final_textured = Image.fromarray((result * 255).astype(np.uint8))
-    
-    # 색감 부스팅
-    final_textured = ImageEnhance.Color(final_textured).enhance(1.15)
-    final_textured = ImageEnhance.Contrast(final_textured).enhance(1.05)
-    
-    # 마스크를 이용해 원본 배경과 합성 (가장 중요한 배경 보존 단계)
-    final_img = Image.composite(final_textured, template_img, mask)
-    
-    # 원본 이미지가 투명도(Alpha)를 가지고 있다면 투명도 복원
-    original_template_img = Image.open(io.BytesIO(template_bytes))
-    if original_template_img.mode in ('RGBA', 'LA') or (original_template_img.mode == 'P' and 'transparency' in original_template_img.info):
-        alpha_channel = original_template_img.convert("RGBA").split()[-1]
-        # 리사이즈 된 경우 크기 맞추기
-        if alpha_channel.size != final_img.size:
-            alpha_channel = alpha_channel.resize(final_img.size, Image.Resampling.LANCZOS)
-        final_img.putalpha(alpha_channel)
-    
-    # 원래 해상도로 1:1 복원
-    if final_img.size != (orig_w, orig_h):
-        final_img = final_img.resize((orig_w, orig_h), Image.Resampling.LANCZOS)
-    
-    out_buf = io.BytesIO()
-    final_img.save(out_buf, format="PNG")
-    return out_buf.getvalue()
+def analyze_leather_with_gemini(leather_bytes: bytes) -> str:
+    """가죽의 질감과 색상을 상세 분석"""
+    try:
+        client = genai.Client(vertexai=True, project="craft-ai-496214", location="us-central1")
+        part = types.Part.from_bytes(data=leather_bytes, mime_type="image/png")
+        res = client.models.generate_content(model="gemini-1.5-flash-002", contents=["Describe this leather material grain and color precisely in 5 words.", part])
+        return res.text.strip()
+    except: return "premium luxury leather material"
 
 @app.post("/api/v1/synthesize")
 async def synthesize(req: SynthesisRequest):
-    print("\n[INFO] 로컬 3D 마스킹 합성 파이프라인 시작...")
-    print(f"[DEBUG] Leather URL: {req.leather_url}")
-    print(f"[DEBUG] Template URL: {req.template_url}")
+    print("\n[INFO] === IMAGEN 3 LUXURY SYNTHESIS START ===")
     
-    leather_bytes = get_image_data(req.leather_url)
-    template_bytes = get_image_data(req.template_url)
+    leather_data = get_image_data(req.leather_url)
+    product_data = get_image_data(req.template_url)
 
-    if not leather_bytes or not template_bytes:
-        print("[WARNING] Could not download images.")
-        return {"result_image_url": req.leather_url}
+    if not leather_data or not product_data:
+        return {"result_image_url": req.template_url}
     
     try:
-        # 로컬 엔진으로 래핑
-        result_bytes = apply_texture_with_mask(leather_bytes, template_bytes)
-        b64_image = base64.b64encode(result_bytes).decode('utf-8')
+        orig_img = Image.open(io.BytesIO(product_data)).convert("RGB")
+        w, h = orig_img.size
         
-        print("[SUCCESS] Synthesis complete! Returning correctly blended image.")
-        return {"result_image_url": f"data:image/png;base64,{b64_image}"}
+        # 1. 지갑 위치 추적
+        ymin, xmin, ymax, xmax = get_product_box_with_gemini(product_data)
+        left, top, right, bottom = xmin * w / 1000, ymin * h / 1000, xmax * w / 1000, ymax * h / 1000
+        
+        # 2. 지갑 영역 크롭 및 패딩
+        pad = 40
+        crop_box = (max(0, left-pad), max(0, top-pad), min(w, right+pad), min(h, bottom+pad))
+        wallet_crop = orig_img.crop(crop_box)
+        cw, ch = wallet_crop.size
+        
+        # 3. 가죽 분석
+        leather_desc = analyze_leather_with_gemini(leather_data)
+        print(f"[INFO] Material analysis: {leather_desc}")
+        
+        # 4. Imagen 3 호출 (Edit/Inpaint 모드)
+        print(f"[INFO] Requesting Imagen 3.0 Pro...")
+        client = genai.Client(vertexai=True, project="craft-ai-496214", location="us-central1")
+        
+        # Imagen 3는 'edit_image'를 통해 마스크 기반 합성을 지원합니다.
+        # 크롭된 영역 전체를 마스크로 사용하여 지갑을 새 가죽으로 재창조합니다.
+        crop_bytes = io.BytesIO()
+        wallet_crop.save(crop_bytes, format="PNG")
+        
+        # 이미지 편집용 마스크 (전체 흰색)
+        mask_img = Image.new("L", (cw, ch), 255)
+        mask_bytes = io.BytesIO()
+        mask_img.save(mask_bytes, format="PNG")
+
+        response = client.models.edit_image(
+            model="imagen-3.0-capability-001",
+            prompt=f"A professional luxury product made of {leather_desc}, identical shape, extreme detail",
+            reference_images=[
+                {
+                    "image": types.Image(image_bytes=crop_bytes.getvalue()),
+                    "reference_id": 1,
+                    "reference_type": "BASE_IMAGE_REFERENCE"
+                },
+                {
+                    "image": types.Image(image_bytes=mask_bytes.getvalue()),
+                    "reference_id": 2,
+                    "reference_type": "MASK_REFERENCE"
+                }
+            ],
+            config=types.EditImageConfig(
+                number_of_images=1,
+                edit_mode="INPAINT_REMOVAL"
+            )
+        )
+        
+        if not response.generated_images:
+            print("[ERROR] Imagen 3 failed to generate images.")
+            return {"result_image_url": req.template_url}
+
+        # 5. 최종 결과물 합성 (원본 배경에 붙이기)
+        print(f"[INFO] Final Assembly: Pasting Imagen 3 result onto original background...")
+        ai_wallet_bytes = response.generated_images[0].image_bytes
+        ai_wallet = Image.open(io.BytesIO(ai_wallet_bytes)).convert("RGB").resize((cw, ch))
+        
+        final_img = orig_img.copy()
+        # 자연스러운 경계를 위한 부드러운 마스크
+        soft_mask = Image.new("L", (cw, ch), 255).filter(ImageFilter.GaussianBlur(15))
+        final_img.paste(ai_wallet, (int(crop_box[0]), int(crop_box[1])), soft_mask)
+        
+        # 6. 결과 반환
+        out_buf = io.BytesIO()
+        final_img.save(out_buf, format="PNG")
+        b64_res = base64.b64encode(out_buf.getvalue()).decode('utf-8')
+        
+        print(f"[SUCCESS] Imagen 3 Luxury Synthesis complete!")
+        return {"result_image_url": f"data:image/png;base64,{b64_res}"}
         
     except Exception as e:
-        print(f"[ERROR] Synthesis failed: {e}")
-        with open("error_log.txt", "w", encoding="utf-8") as f:
-            f.write(traceback.format_exc())
-
-    return {"result_image_url": req.leather_url}
-
-
+        print(f"[ERROR] Luxury Synthesis failed: {e}")
+        return {"result_image_url": req.template_url}
