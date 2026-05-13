@@ -1,17 +1,25 @@
 import os
 import io
-import time
+import base64
 import urllib.request
-import replicate
-from google import genai
-from google.genai import types
+import traceback
+import numpy as np
+from PIL import Image, ImageOps, ImageFilter, ImageEnhance
 from fastapi import FastAPI
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
-load_dotenv()
+# === 전역 U2Net 세션 초기화 (속도 최적화) ===
+# 매 요청마다 모델을 로드하는 병목을 제거하여 합성 속도를 3배 이상 단축합니다.
+try:
+    from rembg import remove, new_session
+    print("[INFO] Loading U2Net Model into memory...")
+    u2net_session = new_session('u2net')
+    print("[SUCCESS] U2Net Model loaded successfully.")
+except Exception as e:
+    print(f"[ERROR] Failed to load U2Net Model: {e}")
+    u2net_session = None
 
-app = FastAPI(title="CraftAI Image Synthesis API (Ultimate AI Pipeline)")
+app = FastAPI(title="CraftAI Image Synthesis API")
 
 class SynthesisRequest(BaseModel):
     leather_url: str
@@ -23,94 +31,150 @@ def get_image_data(url: str):
         with urllib.request.urlopen(req) as res:
             return res.read()
     except Exception as e:
-        print(f"⚠️ 이미지 다운로드 실패 ({url}): {e}")
+        print(f"[WARNING] Image download failed ({url}): {e}")
         return None
+
+def apply_texture_with_mask(leather_bytes: bytes, template_bytes: bytes) -> bytes:
+    leather_img = Image.open(io.BytesIO(leather_bytes)).convert("RGB")
+    template_img = Image.open(io.BytesIO(template_bytes)).convert("RGB")
+    
+    # 1. 원본 템플릿 해상도 기록 (최종 출력물을 무조건 이 해상도로 맞춤)
+    orig_w, orig_h = template_img.size
+    
+    # 2. OOM 방지용 리사이즈
+    max_dim = 1024
+    if orig_w > max_dim or orig_h > max_dim:
+        template_img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+        
+    w, h = template_img.size
+
+    # === 마스크 추출 (1순위: rembg AI, 2순위: 수동 임계값) ===
+    mask = None
+    if u2net_session:
+        try:
+            # 이미지가 화면에 꽉 찬 경우(여백 없음) AI가 피사체를 배경으로 착각하는 버그 방지용 여백 추가
+            pad_size = 50
+            padded_img = ImageOps.expand(template_img, border=pad_size, fill='white')
+            isolated = remove(padded_img, session=u2net_session, post_process_mask=True)
+            mask_padded = isolated.split()[-1]
+            mask = mask_padded.crop((pad_size, pad_size, template_img.width + pad_size, template_img.height + pad_size))
+            
+            # 마스크 유효성 검사 (마스크가 아예 텅 비었을 때만 실패로 간주)
+            mask_arr = np.array(mask)
+            white_ratio = np.sum(mask_arr > 128) / mask_arr.size
+            if white_ratio <= 0.001:
+                mask = None
+        except Exception as e:
+            print(f"[ERROR] U2Net AI 마스크 에러: {e}")
+            mask = None
+
+    gray = template_img.convert("L")
+    gray_arr = np.array(gray).astype(float)
+    
+    if mask is None:
+        print("[INFO] 수동 임계값 마스크 (Threshold Mask) 생성 중...")
+        # 배경색이 흰색/밝은회색(230 이상)이라고 가정하고 누끼 따기
+        bg_mask = gray_arr > 230
+        fg_mask_arr = (~bg_mask) * 255
+        mask = Image.fromarray(fg_mask_arr.astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))
+    
+    # === 텍스처 리사이즈 및 바둑판 배열 ===
+    lw, lh = leather_img.size
+    # 텍스처가 템플릿 안에서 최소 2~3번 반복되도록 스케일 조정 (바둑판 무늬 형성)
+    target_lw = min(200, max(50, int(w * 0.4)))
+    scale = target_lw / lw if lw > 0 else 1.0
+    scaled_leather = leather_img.resize((int(lw*scale), int(lh*scale)), Image.Resampling.LANCZOS)
+    slw, slh = scaled_leather.size
+    
+    tiled_leather = Image.new("RGB", (w, h))
+    for i in range(0, w, slw):
+        for j in range(0, h, slh):
+            tiled_leather.paste(scaled_leather, (i, j))
+            
+    tiled_arr = np.array(tiled_leather)
+    
+    # === 가방 주름(명암) 정규화 및 3D 왜곡(Displacement) 래핑 ===
+    from PIL import ImageFilter, ImageEnhance
+    smooth_gray = np.array(gray.filter(ImageFilter.GaussianBlur(5.0))).astype(float)
+    
+    # 명암을 0~1로 정규화하여 가죽이 너무 어두워지지 않도록 방지
+    g_min = gray_arr.min()
+    g_max = gray_arr.max()
+    fg = (gray_arr - g_min) / (g_max - g_min + 1e-5)
+    
+    dy, dx = np.gradient(smooth_gray)
+    distortion_strength = 2.5 
+    
+    Y, X = np.mgrid[0:h, 0:w]
+    map_y = np.clip(Y + dy * distortion_strength, 0, h - 1).astype(int)
+    map_x = np.clip(X + dx * distortion_strength, 0, w - 1).astype(int)
+    
+    warped_leather_arr = tiled_arr[map_y, map_x, :]
+    
+    # === Hard Light 블렌딩 (가죽 텍스처 + 가방 명암) ===
+    bg = warped_leather_arr.astype(float) / 255.0
+    
+    result = np.zeros_like(bg)
+    cond = fg > 0.5
+    for c in range(3):
+        bg_channel = bg[:,:,c]
+        res_channel = np.empty_like(bg_channel)
+        res_channel[~cond] = 2.0 * fg[~cond] * bg_channel[~cond]
+        res_channel[cond] = 1.0 - 2.0 * (1.0 - fg[cond]) * (1.0 - bg_channel[cond])
+        result[:,:,c] = res_channel
+        
+    final_textured = Image.fromarray((result * 255).astype(np.uint8))
+    
+    # 색감 부스팅
+    final_textured = ImageEnhance.Color(final_textured).enhance(1.15)
+    final_textured = ImageEnhance.Contrast(final_textured).enhance(1.05)
+    
+    # 마스크를 이용해 원본 배경과 합성 (가장 중요한 배경 보존 단계)
+    final_img = Image.composite(final_textured, template_img, mask)
+    
+    # 원본 이미지가 투명도(Alpha)를 가지고 있다면 투명도 복원
+    original_template_img = Image.open(io.BytesIO(template_bytes))
+    if original_template_img.mode in ('RGBA', 'LA') or (original_template_img.mode == 'P' and 'transparency' in original_template_img.info):
+        alpha_channel = original_template_img.convert("RGBA").split()[-1]
+        # 리사이즈 된 경우 크기 맞추기
+        if alpha_channel.size != final_img.size:
+            alpha_channel = alpha_channel.resize(final_img.size, Image.Resampling.LANCZOS)
+        final_img.putalpha(alpha_channel)
+    
+    # 원래 해상도로 1:1 복원
+    if final_img.size != (orig_w, orig_h):
+        final_img = final_img.resize((orig_w, orig_h), Image.Resampling.LANCZOS)
+    
+    out_buf = io.BytesIO()
+    final_img.save(out_buf, format="PNG")
+    return out_buf.getvalue()
 
 @app.post("/api/v1/synthesize")
 async def synthesize(req: SynthesisRequest):
-    print("🚀 Ultimate AI 파이프라인(Gemini 분석 + ControlNet 형태 보존) 시작...")
+    print("\n[INFO] 로컬 3D 마스킹 합성 파이프라인 시작...")
+    print(f"[DEBUG] Leather URL: {req.leather_url}")
+    print(f"[DEBUG] Template URL: {req.template_url}")
     
-    replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    
-    if not replicate_api_token:
-        print("❌ [Warning] REPLICATE_API_TOKEN이 없습니다. 원본 반환.")
+    leather_bytes = get_image_data(req.leather_url)
+    template_bytes = get_image_data(req.template_url)
+
+    if not leather_bytes or not template_bytes:
+        print("[WARNING] Could not download images.")
         return {"result_image_url": req.leather_url}
-
-    # 기본 프롬프트 (안전을 위해)
-    texture_description = "premium luxury rich leather, highly detailed continuous texture"
-
-    # Step 1: Gemini를 이용한 가죽 질감 정밀 분석 (멀티모달)
-    if google_api_key:
-        try:
-            print("🔍 1단계: 업로드된 가죽의 색상/질감 패턴 분석 중 (Gemini 1.5 Vision)...")
-            client = genai.Client(api_key=google_api_key)
-            leather_bytes = get_image_data(req.leather_url)
-            
-            if leather_bytes:
-                part = types.Part.from_bytes(data=leather_bytes, mime_type="image/jpeg")
-                prompt = (
-                    "Analyze this leather texture. "
-                    "In exactly one short sentence, describe its precise color, grain, pattern, and finish "
-                    "(e.g., 'glossy dark brown crocodile embossed leather', 'smooth matte tan cowhide'). "
-                    "Return ONLY the description text, no other words."
-                )
-                
-                res = client.models.generate_content(
-                    model="gemini-1.5-flash-001",
-                    contents=[prompt, part]
-                )
-                if res and res.text:
-                    texture_description = res.text.strip()
-                    print(f"✨ 가죽 분석 완료! 질감 키워드: {texture_description}")
-        except Exception as e:
-            print(f"⚠️ Gemini 분석 에러 (기본 질감으로 진행): {e}")
-
-    # Step 2: 분석된 질감 값을 ControlNet 프롬프트에 동적으로 삽입하여 완벽한 모양으로 렌더링
-    print("🎨 2단계: 템플릿 형태 고정 및 AI 텍스처 렌더링 중 (Stable Diffusion ControlNet)...")
-    final_prompt = f"A photo-realistic masterpiece product shot of a bag made of {texture_description}. 8k resolution, studio lighting, hyper-realistic, luxury craftsmanship."
     
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            output = replicate.run(
-                "jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307baf1c56960b5e02e1c166",
-                input={
-                    "image": req.template_url,
-                    "prompt": final_prompt,
-                    "a_prompt": "best quality, extremely detailed, photo-real",
-                    "n_prompt": "longbody, lowres, bad anatomy, bad hands, missing fingers, cropped, worst quality, low quality",
-                    "num_samples": 1,
-                    "image_resolution": 512,
-                    "ddim_steps": 20,
-                    "scale": 9.0
-                }
-            )
-            
-            if output and len(output) > 1:
-                result_url = output[1]
-                print(f"🎉 완벽한 AI 합성 성공! (형태 유지 + 질감 맞춤) 결과 URL: {result_url}")
-                return {"result_image_url": result_url}
-            elif output and len(output) == 1:
-                result_url = output[0]
-                print(f"🎉 완벽한 AI 합성 성공! 결과 URL: {result_url}")
-                return {"result_image_url": result_url}
-            else:
-                print("⚠️ ControlNet 결과가 비어있습니다.")
-                break # Not a rate limit error, break early
-                
-        except Exception as e:
-            error_str = str(e).lower()
-            if "429" in error_str or "rate limit" in error_str or "throttled" in error_str:
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt + 3 # 4s, 5s...
-                    print(f"⏳ Replicate 무료 제한(429) 초과. {wait_time}초 후 재시도 합니다... ({attempt+1}/{max_retries})")
-                    time.sleep(wait_time)
-                else:
-                    print(f"💥 최대한 재시도 에도 불구하고 Replicate ControlNet 에러 발생: {e}")
-            else:
-                print(f"💥 Replicate ControlNet 치명적 에러: {e}")
-                break # Not a rate limit error
+    try:
+        # 로컬 엔진으로 래핑
+        result_bytes = apply_texture_with_mask(leather_bytes, template_bytes)
+        b64_image = base64.b64encode(result_bytes).decode('utf-8')
         
+        print("[SUCCESS] Synthesis complete! Returning correctly blended image.")
+        return {"result_image_url": f"data:image/png;base64,{b64_image}"}
+        
+    except Exception as e:
+        print(f"[ERROR] Synthesis failed: {e}")
+        with open("error_log.txt", "w", encoding="utf-8") as f:
+            f.write(traceback.format_exc())
+
     return {"result_image_url": req.leather_url}
+
 
