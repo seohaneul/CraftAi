@@ -20,6 +20,7 @@ backend/bin/
 ai/venv/
 ai/__pycache__/
 ai/*.py[cod]
+ai/google-credentials.json
 
 # 기타 에디터 설정 파일
 .vscode/
