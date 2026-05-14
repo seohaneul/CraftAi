@@ -50,12 +50,15 @@ async def synthesize(req: SynthesisRequest):
         product_part = types.Part.from_bytes(data=product_data, mime_type="image/png")
         leather_part = types.Part.from_bytes(data=leather_data, mime_type="image/png")
         
-        # Nano-Banana 전용 합성 프롬프트
+        # Universal Master Artisan Synthesis Prompt (Context-Aware & Design-First)
         prompt = (
-            "You are a professional luxury product synthesizer. "
-            "Take the product structure from the first image and apply the leather texture/color from the second image. "
-            "Maintain the exact shape, shadows, and background of the original product. "
-            "Generate the final synthesized image in high resolution."
+            "You are a universal master artisan and digital visualizer. "
+            "Your mission is to flawlessly integrate the 'Master Design' from the FIRST image into the 'Target Scene' of the SECOND image. "
+            "1. MASTER DESIGN (FIRST IMAGE): This is the definitive creation (e.g., a garment, a jewelry piece, a material, or a craft). You must preserve its exact colors, intricate textures, patterns, and craftsmanship details without any modification. "
+            "2. TARGET SCENE (SECOND IMAGE): This is the real-world context (e.g., a person, a hand, a room, or a product background). Maintain all unique characteristics of this scene, including the subject's pose, anatomy, lighting, and environmental background. "
+            "3. SEAMLESS INTEGRATION: Identify the most appropriate area or object in the SECOND image that should be replaced by the FIRST image's design. Replace it entirely with the master design while ensuring it conforms naturally to the shapes, curves, and perspective of the target scene. "
+            "4. PURITY OF DESIGN: Do not let the original colors or textures of the target area in the SECOND image bleed into or affect the MASTER DESIGN. The design from the FIRST image must remain pure and dominant in its designated area. "
+            "The final output must be a professional, high-resolution visualization that looks like an authentic, high-end photograph."
         )
 
         print(f"[INFO] Requesting Nano-Banana (Gemini 3 Pro)...")
